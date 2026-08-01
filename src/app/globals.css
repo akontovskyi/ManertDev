@@ -1,0 +1,61 @@
+:root {
+  --ink: #0c1a24;
+  --ink-soft: #243b4a;
+  --paper: #dfe7ec;
+  --paper-2: #cfd9e1;
+  --panel: #f4f7f9;
+  --line: #8fa3b0;
+  --signal: #c45c26;
+  --safe: #0f7a6c;
+  --warn: #b8860b;
+  --crit: #a32020;
+  --high: #c45c26;
+  --med: #b8860b;
+  --low: #3d6b8c;
+  --info: #5a6b76;
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse 120% 80% at 10% -20%, #b9cdd8 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 0%, #c5d4c8 0%, transparent 45%),
+    linear-gradient(165deg, var(--paper) 0%, var(--paper-2) 100%);
+  font-family: var(--font-body);
+}
+
+a {
+  color: var(--safe);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.sd-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  min-height: 100vh;
+}
+
+@media (max-width: 840px) {
+  .sd-shell {
+    grid-template-columns: 1fr;
+  }
+}
+

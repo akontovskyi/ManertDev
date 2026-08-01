@@ -1,0 +1,23 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OverlyOpen",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "AdminAttach",
+      "Effect": "Allow",
+      "Action": "iam:AttachUserPolicy",
+      "Resource": "*",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+      }
+    }
+  ]
+}
