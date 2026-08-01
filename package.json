@@ -1,25 +1,40 @@
 {
   "name": "sentineldev",
   "version": "0.1.0",
-  "private": true,
-  "description": "AI-powered in-development security helper — detect exposure risks, propose safe fixes, never auto-modify.",
+  "private": false,
+  "description": "Terminal-native Secure AI helper — Denuvo for your app in development. Propose-only.",
   "scripts": {
     "dev": "node --use-system-ca ./node_modules/next/dist/bin/next dev",
     "build": "node --use-system-ca ./node_modules/next/dist/bin/next build",
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
     "lint": "next lint",
     "cli": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs src/cli/index.ts",
+    "sentinel": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs src/cli/index.ts",
     "scan": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs src/cli/index.ts scan",
     "supabase:probe": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs scripts/probe-supabase.ts",
     "typecheck": "tsc --noEmit"
   },
   "bin": {
-    "sentineldev": "./dist/cli/index.js"
+    "sentinel": "./sentinel.js",
+    "sentineldev": "./sentinel.js"
   },
+  "files": [
+    "sentinel.js",
+    "src/**/*",
+    "supabase/**/*",
+    "fixtures/**/*",
+    "scripts/**/*",
+    "README.md",
+    ".env.example",
+    "package.json",
+    "tsconfig.json",
+    "next.config.ts"
+  ],
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "fast-glob": "^3.3.3",
     "next": "^15.1.6",
+    "openai": "^4.104.0",
     "pdf-parse": "^1.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

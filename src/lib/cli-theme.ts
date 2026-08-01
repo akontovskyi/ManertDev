@@ -1,12 +1,12 @@
 /**
- * Claude Code–inspired terminal report for SentinelDev.
- * Hierarchy: smart-blue banners/title → bold white titles → dim gray detail
- * Findings = red · Fix-log code = green · Actions = violet
+ * Terminal-native CLI theme for SentinelDev.
+ * Plain-text friendly, ANSI colors only — no web/markdown UI.
  */
 
 import path from "node:path";
 import type { Finding, FixLogRow, SentinelReport, Severity } from "./types";
 import { findingToFixLog } from "./report";
+import { detectEditor, editorLabel, editorScheme } from "./editor";
 
 const ESC = "\u001b[";
 const OSC = "\u001b]";
@@ -23,21 +23,16 @@ function wrap(codes: string, text: string): string {
 }
 
 export const c = {
-  /** Peach / soft orange — secondary accent */
   peach: (t: string) => wrap("38;2;232;168;124", t),
-  /** Smart blue #4C71A8 — title / welcome / brand */
   smartBlue: (t: string) => wrap("38;2;76;113;168", t),
   bold: (t: string) => wrap("1", t),
   white: (t: string) => wrap("97", t),
   dim: (t: string) => wrap("38;2;160;160;160", t),
   muted: (t: string) => wrap("38;2;110;110;110", t),
-  /** Findings */
   red: (t: string) => wrap("38;2;232;88;88;1", t),
   redSoft: (t: string) => wrap("38;2;200;110;110", t),
-  /** Fix logs / safe remediations */
   green: (t: string) => wrap("38;2;92;200;140", t),
   greenBold: (t: string) => wrap("38;2;92;200;140;1", t),
-  /** Action prompts */
   violet: (t: string) => wrap("38;2;176;148;232", t),
   blue: (t: string) => wrap("38;2;110;168;232;4", t),
   yellow: (t: string) => wrap("38;2;220;180;90", t),
@@ -54,6 +49,10 @@ function banner(text: string): string {
   ].join("\n");
 }
 
+export function bannerPublic(text: string): string {
+  return banner(text);
+}
+
 function asciiLogo(): string {
   const sentinel = [
     "███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗     ",
@@ -64,7 +63,6 @@ function asciiLogo(): string {
     "╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝",
   ].map((l) => c.smartBlue(l));
 
-  // Shifted further right under SENTINEL
   const indent = "                    ";
   const dev = [
     "",
@@ -79,24 +77,24 @@ function asciiLogo(): string {
   return [...sentinel, ...dev].join("\n");
 }
 
-/**
- * Cursor / VS Code clickable location.
- * - OSC-8 hyperlink → opens editor at line (Ctrl/Cmd+click)
- * - Plain `absPath:line:col` → terminal link detector fallback
- */
+export function asciiLogoPublic(): string {
+  return asciiLogo();
+}
+
 function resolveAbsPath(root: string, relOrAbs: string): string {
   if (path.isAbsolute(relOrAbs)) return path.normalize(relOrAbs);
   return path.normalize(path.resolve(root, relOrAbs));
 }
 
-function toEditorUri(absPath: string, line?: number): string {
+function toEditorUri(absPath: string, line?: number, column = 1): string {
+  const scheme = editorScheme();
   const normalized = absPath.replace(/\\/g, "/");
   const withDrive =
     /^[A-Za-z]:/.test(normalized) && !normalized.startsWith("/")
       ? `/${normalized}`
       : normalized;
-  const linePart = line && line > 0 ? `:${line}` : "";
-  return `vscode://file${withDrive}${linePart}`;
+  const lineNo = line && line > 0 ? line : 1;
+  return `${scheme}://file${withDrive}:${lineNo}:${column}`;
 }
 
 function hyperlink(uri: string, label: string): string {
@@ -104,23 +102,60 @@ function hyperlink(uri: string, label: string): string {
   return `${OSC}8;;${uri}${BEL}${label}${OSC}8;;${BEL}`;
 }
 
-function formatLocation(
+export interface LocationInfo {
+  basename: string;
+  relative: string;
+  absolute: string;
+  line: number;
+  column: number;
+  endLine?: number;
+  short: string;
+  clickable: string;
+  jumpBlock: string;
+}
+
+export function formatLocation(
   root: string,
   file: string,
   line?: number,
+  endLine?: number,
   paint: (s: string) => string = (s) => s,
-): { short: string; clickable: string; jumpHint: string } {
+): LocationInfo {
   const abs = resolveAbsPath(root, file);
   const lineNo = line && line > 0 ? line : 1;
-  const short = line ? `${file}:${line}` : file;
-  const detector = `${abs}:${lineNo}:1`;
-  const linkedShort = hyperlink(toEditorUri(abs, lineNo), short);
-  const linkedAbs = hyperlink(toEditorUri(abs, lineNo), detector);
+  const column = 1;
+  const basename = path.basename(file);
+  const relative = path.isAbsolute(file)
+    ? path.relative(root, file) || file
+    : file;
+  const range =
+    endLine && endLine > lineNo ? `L${lineNo}-L${endLine}` : `L${lineNo}`;
+  const short = `${basename}:${lineNo}`;
+  const uri = toEditorUri(abs, lineNo, column);
+  // Terminal path detector form (opens in whichever IDE hosts the terminal)
+  const detector = `${abs}:${lineNo}:${column}`;
+
+  const clickable = paint(hyperlink(uri, short));
+  const ide = editorLabel();
+  const jumpBlock = [
+    `${c.dim("File:")}     ${paint(hyperlink(uri, relative))}`,
+    `${c.dim("Line:")}     ${paint(String(lineNo))}${endLine && endLine > lineNo ? c.dim(`  (through ${endLine})`) : ""}`,
+    `${c.dim("Column:")}   ${paint(String(column))}`,
+    `${c.dim("Range:")}    ${paint(range)}`,
+    `${c.dim("Path:")}     ${paint(hyperlink(uri, abs))}`,
+    `${c.dim("Jump:")}     ${paint(hyperlink(uri, detector))}  ${c.muted(`Ctrl+click → ${ide}`)}`,
+  ].join("\n   ");
 
   return {
+    basename,
+    relative,
+    absolute: abs,
+    line: lineNo,
+    column,
+    endLine,
     short,
-    clickable: paint(linkedShort),
-    jumpHint: `${c.dim("Open in Cursor:")} ${paint(linkedAbs)}`,
+    clickable,
+    jumpBlock,
   };
 }
 
@@ -157,14 +192,21 @@ function numberedItem(
 }
 
 function formatFinding(f: Finding, index: number, root: string): string {
-  const loc = formatLocation(root, f.evidence.file, f.evidence.line, c.redSoft);
+  const loc = formatLocation(
+    root,
+    f.evidence.file,
+    f.evidence.line,
+    f.evidence.endLine,
+    c.redSoft,
+  );
   const title = `[${f.severity}] ${f.title}`;
   const head = severityColor(f.severity, `${index}. ${title}`);
+  const idLine = `${c.dim("Issue ID:")} ${c.white(f.id)}`;
   const lines = [
     `   ${c.dim(f.description)}`,
-    `   ${c.dim("Where:")} ${loc.clickable}`,
-    `   ${loc.jumpHint}`,
-    `   ${c.dim("Fix:")}   ${c.dim(f.remediation)}`,
+    `   ${idLine}`,
+    `   ${loc.jumpBlock}`,
+    `   ${c.dim("Fix:")}      ${c.dim(f.remediation)}`,
   ];
   return `${head}\n${lines.join("\n")}`;
 }
@@ -174,20 +216,49 @@ function formatEvidenceBlock(
   index: number,
   root: string,
 ): string {
-  const loc = formatLocation(root, f.evidence.file, f.evidence.line, c.red);
-  const head = c.red(`${index}. `) + loc.clickable;
-  const jump = `   ${loc.jumpHint}`;
+  const loc = formatLocation(
+    root,
+    f.evidence.file,
+    f.evidence.line,
+    f.evidence.endLine,
+    c.red,
+  );
+  const head = c.red(`${index}. `) + loc.clickable + c.dim(`  (${f.id})`);
+  const meta = `   ${loc.jumpBlock}`;
   const code = f.evidence.snippet
     .split("\n")
-    .map((line) => c.redSoft(`   │ ${line}`))
+    .map((line, i) => {
+      // snippetAround uses radius 1 → first displayed line is max(1, line-1)
+      const start = Math.max(1, (f.evidence.line || 1) - 1);
+      const n = start + i;
+      return c.redSoft(`   │ ${String(n).padStart(4, " ")} │ ${line}`);
+    })
     .join("\n");
-  return `${head}\n${jump}\n${code}`;
+  return `${head}\n${meta}\n${code}`;
+}
+
+/** Supabase-style plain log block (also used for terminal clarity). */
+export function formatFixLogPlain(rows: FixLogRow[]): string {
+  if (rows.length === 0) return c.dim("   (no fix-log rows)");
+  return rows
+    .map((r) => {
+      const block = [
+        `[${r.severity}] ${r.timestamp}`,
+        `Issue: ${r.description}`,
+        `File: ${r.file_path || "?"}${r.line_number ? `:${r.line_number}` : ""}`,
+        `Evidence: ${r.evidence_snippet.replace(/\n/g, " / ")}`,
+        `Fix: ${r.proposed_remediation}`,
+      ].join("\n");
+      return block
+        .split("\n")
+        .map((line) => c.green(`   ${line}`))
+        .join("\n");
+    })
+    .join("\n\n");
 }
 
 function formatFixLogCode(rows: FixLogRow[]): string {
-  if (rows.length === 0) {
-    return c.dim("   (no fix-log rows for this scan)");
-  }
+  if (rows.length === 0) return c.dim("   (no fix-log rows for this scan)");
   const json = JSON.stringify(rows, null, 2);
   return json
     .split("\n")
@@ -208,10 +279,10 @@ function formatProposedFix(text: string, index: number): string {
   return numberedItem(index, text.slice(0, 80), text, (s) => c.greenBold(s));
 }
 
-/** Full Claude-style CLI report. */
 export function formatCliReport(report: SentinelReport): string {
   const parts: string[] = [];
   const root = report.targetPath;
+  const ide = editorLabel();
 
   parts.push("");
   parts.push(banner("Welcome to SentinelDev — propose-only security helper"));
@@ -219,13 +290,11 @@ export function formatCliReport(report: SentinelReport): string {
   parts.push(asciiLogo());
   parts.push("");
   parts.push(
-    c.dim(
-      "Scan finished. Review findings carefully before applying any patch.",
-    ),
+    c.dim("Scan finished. Review findings carefully before applying any patch."),
   );
   parts.push(
     c.muted(
-      `kind: ${report.scanKind}  ·  target: ${report.targetPath}  ·  ${report.scannedAt}`,
+      `kind: ${report.scanKind}  ·  target: ${report.targetPath}  ·  editor: ${ide}  ·  ${report.scannedAt}`,
     ),
   );
 
@@ -236,24 +305,24 @@ export function formatCliReport(report: SentinelReport): string {
   parts.push(
     numberedItem(
       1,
-      "Findings (red) are risks SentinelDev detected in your tree",
-      "Each item shows severity, what it means, exact file:line, and a safe remediation. Nothing was modified.",
+      "Findings (red) = risks in your tree",
+      "Each issue lists severity, Issue ID, file name, line, column, full path, and a proposed fix. Nothing was modified.",
     ),
   );
   parts.push("");
   parts.push(
     numberedItem(
       2,
-      "Ctrl+click (Cmd+click on macOS) any file:line to jump in Cursor",
-      "Links use vscode://file paths so the IDE opens the exact line. Absolute path:line:col also works.",
+      `Ctrl+click (Cmd+click) any path to open in ${ide}`,
+      `Links use ${editorScheme()}://file so they open in your current IDE (${detectEditor()}), not a different editor.`,
     ),
   );
   parts.push("");
   parts.push(
     numberedItem(
       3,
-      "Fix logs (green) are Supabase-ready records of every proposed fix",
-      "Persist them to PostgreSQL, or copy the JSON into your tracker. Status starts as \"proposed\".",
+      "Fix logs (green) = Supabase-ready remediations",
+      "Plain log + JSON forms are both printed. Status starts as proposed.",
     ),
   );
 
@@ -306,17 +375,18 @@ export function formatCliReport(report: SentinelReport): string {
   } else {
     parts.push(
       c.dim(
-        "  Not generated — say apply fix, generate patch, or run agent to request a Cursor-ready patch.",
+        "  Not generated — run: sentinel fix <issue-id>   or   sentinel ask \"apply fix\"",
       ),
     );
   }
 
   const rows = report.findings.map(findingToFixLog);
-  parts.push(sectionHeader("Fix logs (Supabase-compatible JSON)"));
+  parts.push(sectionHeader("Fix logs (plain)"));
+  parts.push(formatFixLogPlain(rows));
+  parts.push("");
+  parts.push(sectionHeader("Fix logs (JSON)"));
   parts.push(
-    c.dim(
-      "  Ready to insert into public.fix_logs — green = safe proposed remediation payload",
-    ),
+    c.dim("  Ready for public.fix_logs — green = proposed remediation payload"),
   );
   parts.push("");
   parts.push(formatFixLogCode(rows));
@@ -349,7 +419,7 @@ export function formatCliReport(report: SentinelReport): string {
   parts.push("");
   parts.push(
     c.violet(
-      "  Next: npm run cli -- ask \"apply fix\"   ·   open /dashboard   ·   npm run supabase:probe",
+      "  Next: sentinel fix <id>  ·  sentinel install  ·  sentinel supabase",
     ),
   );
   parts.push("");
@@ -364,39 +434,138 @@ export function formatCliHelp(): string {
     "",
     asciiLogo(),
     "",
-    c.dim("Propose-only security helper for apps in development."),
+    c.dim("Terminal-native Secure AI helper. Propose-only. No auto-modify."),
     "",
-    sectionHeader("Usage"),
-    numberedItem(
-      1,
-      "Scan a tree",
-      "npm run cli -- scan [--root <path>] [--kind endpoints|secrets|entrances|database|scramble|iam|full]",
-    ),
+    sectionHeader("Commands"),
+    c.white("  sentinel"),
+    c.dim("      Interactive AI chat (Claude-style). Auto-scans, then Nemotron analyzes."),
     "",
-    numberedItem(
-      2,
-      "Ask in plain language",
-      'npm run cli -- ask "are there exposed endpoints?" --root .',
-    ),
+    c.white("  sentinel scan [path]"),
+    c.dim("      Full security sweep of a directory (default: .)"),
     "",
-    numberedItem(
-      3,
-      "Prepare a Modal heavy-analysis task",
-      'npm run cli -- modal "deep scan endpoints and database" --root .',
-    ),
+    c.white("  sentinel scan --endpoints | --env | --db | --keys | --admin"),
+    c.dim("      Targeted scans (can combine with a path)"),
+    "",
+    c.white("  sentinel ask \"find exposed endpoints\""),
+    c.dim("      One-shot natural-language scan (non-interactive)"),
+    "",
+    c.white("  sentinel chat"),
+    c.dim("      Same as bare 'sentinel' — open the AI REPL"),
+    "",
+    c.white("  sentinel explain <file>"),
+    c.dim("      Explain security risks found in one file"),
+    "",
+    c.white("  sentinel fix <issue-id>"),
+    c.dim("      Print a proposed patch for one finding (never applies it)"),
+    "",
+    c.white("  sentinel diff <file>"),
+    c.dim("      Show proposed secure rewrite diff for a file"),
+    "",
+    c.white("  sentinel supabase"),
+    c.dim("      Probe Supabase connection + fix_logs table"),
+    "",
+    c.white("  sentinel install"),
+    c.dim("      Print manual steps to install sentinel globally"),
+    "",
+    c.white("  sentinel modal \"deep scan...\""),
+    c.dim("      Emit a Modal-ready heavy analysis task description"),
     "",
     sectionHeader("Keyword routing"),
-    c.dim("  endpoints, route, API, public, exposed  → Endpoint Exposure Scan"),
-    c.dim("  database, db, sql, mongo                → Database Exposure Scan"),
-    c.dim("  env, keys, secrets, token               → Secrets & Env Scan"),
-    c.dim("  admin, debug, panel                     → System Entrance Scan"),
-    c.dim("  scramble, rotate, secure keys           → Key Scrambling Suggestions"),
-    c.dim("  IAM, permissions, policy, who can       → IAM Reasoning"),
-    c.dim("  fix, patch, apply                       → Include Cursor Agent Patch"),
+    c.dim("  endpoint, route, public, exposed  → Endpoint Exposure Scan"),
+    c.dim("  database, db, sql, mongo          → Database Exposure Scan"),
+    c.dim("  env, environment, keys, secrets   → Secrets & Env Scan"),
+    c.dim("  admin, debug, panel               → System Entrance Scan"),
+    c.dim("  scramble, rotate                  → Key Scrambling Suggestions"),
+    c.dim("  fix, patch                        → Generate Patch (only when requested)"),
     "",
     c.violet(
-      "  Tip: findings print in red · fix-log JSON prints in green · Ctrl+click file:line in Cursor",
+      `  Tip: findings=red · fix logs=green · Ctrl+click opens in ${editorLabel()}`,
     ),
     "",
   ].join("\n");
+}
+
+/** Mandatory global install steps (plain text). */
+export function formatInstallSteps(projectRoot: string): string {
+  const root = projectRoot.replace(/\\/g, "/");
+  return `
+${banner("SentinelDev — global CLI install (manual)")}
+
+STEP 1 — Create a CLI entry point file
+--------------------------------------
+The repo already ships sentinel.js at the project root:
+
+  #!/usr/bin/env node
+  // loads src/cli/index.ts via tsx
+
+On macOS/Linux, make it executable:
+
+  chmod +x sentinel.js
+
+Windows: use npm bin linking (Step 2) — no chmod needed.
+
+
+STEP 2 — Install SentinelDev globally
+-------------------------------------
+From the project folder (${root}):
+
+  npm install
+  npm install -g .
+
+package.json bin mapping:
+
+  "bin": {
+    "sentinel": "./sentinel.js"
+  }
+
+This registers the 'sentinel' command on your PATH via npm.
+
+
+STEP 3 — Add SentinelDev to PATH (if needed)
+--------------------------------------------
+If 'sentinel' is not found after npm install -g:
+
+  macOS / Linux:
+    sudo ln -sf "$(npm root -g)/sentineldev/sentinel.js" /usr/local/bin/sentinel
+    # or:
+    export PATH="$PATH:$(npm bin -g)"
+
+  Windows (PowerShell — user PATH):
+    $npmGlobal = npm config get prefix
+    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$npmGlobal", "User")
+
+Or run without global install:
+
+  npx --yes tsx ${root}/src/cli/index.ts scan .
+
+
+STEP 4 — Verify installation
+----------------------------
+  sentinel --help
+  sentinel scan .
+  sentinel scan --endpoints
+  sentinel supabase
+
+
+STEP 5 — Optional: shell aliases / auto-start
+---------------------------------------------
+Add to ~/.zshrc, ~/.bashrc, or PowerShell profile:
+
+  alias sentinel="sentinel"
+
+Optional watch-style reminder (manual alias):
+
+  alias sentinel-watch='sentinel scan .'
+
+Editor jump links:
+  SENTINEL_EDITOR=cursor   # force Cursor
+  SENTINEL_EDITOR=vscode   # force VS Code
+  (default: auto-detect; prefers Cursor)
+
+Supabase (.env.local — never commit):
+  NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+
+${c.violet("After install, run:  sentinel scan .")}
+`.trimStart();
 }
