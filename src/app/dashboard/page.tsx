@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import { buildFixPrompt } from "@/lib/fix-prompt";
 
 type ChatMessage = {
   id: string;
@@ -13,9 +14,33 @@ type Finding = {
   severity: string;
   title: string;
   description: string;
-  evidence: { file: string; line?: number; snippet: string };
+  evidence: { file: string; line?: number; endLine?: number; snippet: string };
   remediation: string;
+  proposedPatch?: string;
+  problemType?: string;
 };
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
 
 export default function DashboardPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -37,6 +62,8 @@ export default function DashboardPage() {
   const [openSeverities, setOpenSeverities] = useState<Record<string, boolean>>(
     {},
   );
+  const [copiedFindingId, setCopiedFindingId] = useState<string | null>(null);
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const findingsBySeverity = useMemo(() => {
@@ -54,6 +81,17 @@ export default function DashboardPage() {
 
   function toggleSeverity(severity: string) {
     setOpenSeverities((prev) => ({ ...prev, [severity]: !prev[severity] }));
+  }
+
+  async function copyFixPrompt(finding: Finding) {
+    const ok = await copyText(buildFixPrompt(finding));
+    if (!ok) return;
+    if (copyResetRef.current) clearTimeout(copyResetRef.current);
+    setCopiedFindingId(finding.id);
+    copyResetRef.current = setTimeout(() => {
+      setCopiedFindingId(null);
+      copyResetRef.current = null;
+    }, 2000);
   }
 
   function send(preset?: string) {
@@ -78,7 +116,14 @@ export default function DashboardPage() {
             content: data.markdown || data.error || "No response.",
           },
         ]);
-        if (Array.isArray(data.findings)) setFindings(data.findings);
+        if (Array.isArray(data.findings)) {
+          setFindings(data.findings);
+          const nextOpen: Record<string, boolean> = {};
+          for (const f of data.findings as Finding[]) {
+            nextOpen[f.severity] = true;
+          }
+          setOpenSeverities(nextOpen);
+        }
       } catch (err) {
         setMessages((m) => [
           ...m,
@@ -125,7 +170,14 @@ export default function DashboardPage() {
           content: data.markdown || data.error || "PDF analysis failed.",
         },
       ]);
-      if (Array.isArray(data.findings)) setFindings(data.findings);
+      if (Array.isArray(data.findings)) {
+        setFindings(data.findings);
+        const nextOpen: Record<string, boolean> = {};
+        for (const f of data.findings as Finding[]) {
+          nextOpen[f.severity] = true;
+        }
+        setOpenSeverities(nextOpen);
+      }
     });
   }
 
@@ -197,7 +249,14 @@ export default function DashboardPage() {
             content: data.markdown || data.error || "PDF analysis failed.",
           },
         ]);
-        if (Array.isArray(data.findings)) setFindings(data.findings);
+        if (Array.isArray(data.findings)) {
+          setFindings(data.findings);
+          const nextOpen: Record<string, boolean> = {};
+          for (const f of data.findings as Finding[]) {
+            nextOpen[f.severity] = true;
+          }
+          setOpenSeverities(nextOpen);
+        }
       } catch (err) {
         setMessages((m) => [
           ...m,
@@ -345,6 +404,20 @@ export default function DashboardPage() {
                           {f.evidence.file}
                           {f.evidence.line ? `:${f.evidence.line}` : ""}
                         </code>
+                        {f.remediation ? (
+                          <p style={styles.sideFindingFix}>
+                            Fix: {f.remediation}
+                          </p>
+                        ) : null}
+                        <button
+                          type="button"
+                          style={styles.copyPromptBtn}
+                          onClick={() => copyFixPrompt(f)}
+                        >
+                          {copiedFindingId === f.id
+                            ? "Copied!"
+                            : "Copy fix prompt"}
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -771,6 +844,24 @@ const styles: Record<string, CSSProperties> = {
     color: "var(--ink-soft)",
     fontSize: "0.75rem",
     lineHeight: 1.35,
+  },
+  sideFindingFix: {
+    margin: "0.15rem 0 0",
+    color: "var(--safe)",
+    fontSize: "0.72rem",
+    lineHeight: 1.35,
+  },
+  copyPromptBtn: {
+    alignSelf: "flex-start",
+    marginTop: "0.35rem",
+    padding: "0.28rem 0.55rem",
+    border: "1px solid var(--line)",
+    borderRadius: 6,
+    background: "#fff",
+    color: "var(--ink)",
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    cursor: "pointer",
   },
   badge: {
     fontSize: "0.7rem",
