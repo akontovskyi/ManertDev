@@ -137,8 +137,8 @@ export function createNvidiaClient(cfg?: NvidiaConfig): OpenAI | null {
   if (config.provider === "openrouter") {
     headers["HTTP-Referer"] =
       process.env.OPENROUTER_SITE_URL ||
-      "https://github.com/alvi83252-dot/SentinelDev";
-    headers["X-Title"] = process.env.OPENROUTER_APP_NAME || "SentinelDev";
+      "https://github.com/alvi83252-dot/ManertDev";
+    headers["X-Title"] = process.env.OPENROUTER_APP_NAME || "ManertDev";
   }
 
   return new OpenAI({
@@ -148,7 +148,7 @@ export function createNvidiaClient(cfg?: NvidiaConfig): OpenAI | null {
   });
 }
 
-export const SENTINEL_SYSTEM_PROMPT = `You are SentinelDev — a real-time terminal AI with a cybersecurity specialty.
+export const MANERT_SYSTEM_PROMPT = `You are ManertDev — a real-time terminal AI with a cybersecurity specialty.
 
 Personality:
 - Talk like a sharp security engineer in a CLI.
@@ -167,7 +167,7 @@ When answering cybersecurity / scan questions, ALWAYS structure like this:
 
 Rules:
 - If SCAN_EVIDENCE_JSON is present: local scanners found the issues — do not invent new ones.
-- If no evidence: say so clearly; suggest which sentinel scan to run.
+- If no evidence: say so clearly; suggest which manert scan to run.
 - Never claim you modified files. Propose only.
 - For dumb/non-security chat: answer naturally without forcing a security lecture.
 `;
@@ -196,7 +196,7 @@ function wrapConnectionError(err: unknown): Error {
     return new Error(
       [
         "LLM API connection failed (TLS/certificate).",
-        "Fix: restart sentinel (uses --use-system-ca).",
+        "Fix: restart manert (uses --use-system-ca).",
         cause ? `Detail: ${cause}` : `Detail: ${msg}`,
       ].join("\n"),
     );
@@ -324,7 +324,7 @@ async function streamOnce(
  * Stream chat with automatic key/model fallbacks.
  * preferFallback=true when no security keywords (general chat).
  */
-export async function streamSentinelChat(opts: {
+export async function streamManertChat(opts: {
   messages: ChatCompletionMessageParam[];
   handlers?: StreamHandlers;
   temperature?: number;
@@ -337,7 +337,7 @@ export async function streamSentinelChat(opts: {
   const chain = getLlmConfigChain({ preferFallback: opts.preferFallback });
   if (!chain.length) {
     throw new Error(
-      "No LLM keys configured. Add OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY to ~/.sentineldev/.env",
+      "No LLM keys configured. Add OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY to ~/.manertdev/.env",
     );
   }
 

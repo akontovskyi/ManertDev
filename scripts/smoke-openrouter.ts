@@ -1,5 +1,5 @@
 import { loadEnvFiles, userSecretsPath } from "../src/lib/env";
-import { getNvidiaConfig, streamSentinelChat } from "../src/lib/nvidia";
+import { getNvidiaConfig, streamManertChat } from "../src/lib/nvidia";
 
 async function main() {
   loadEnvFiles();
@@ -15,9 +15,9 @@ async function main() {
     keyPrefix: c.apiKey.slice(0, 12) + "...",
     secretsFile: userSecretsPath(),
   });
-  const t = await streamSentinelChat({
+  const t = await streamManertChat({
     messages: [
-      { role: "system", content: "You are SentinelDev. One short sentence." },
+      { role: "system", content: "You are ManertDev. One short sentence." },
       { role: "user", content: "Say hi in one sentence." },
     ],
     showThinking: false,

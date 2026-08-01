@@ -1,6 +1,6 @@
-# SentinelDev Modal workers
+# ManertDev Modal workers
 
-Cloud heavy-scan + model ask for the `sentinel modal` CLI.
+Cloud heavy-scan + model ask for the `manert modal` CLI.
 
 ## One-time setup
 
@@ -14,19 +14,19 @@ node scripts/sync-modal-env.js
 
 ```bash
 # Health
-python -m modal run modal_app/sentinel.py --ping-only
-sentinel modal --ping
+python -m modal run modal_app/manert.py --ping-only
+manert modal --ping
 
 # Heavy scan (uploads a capped file set)
-sentinel modal "find exposed endpoints"
-sentinel modal --narrate "full scan"
+manert modal "find exposed endpoints"
+manert modal --narrate "full scan"
 
-# Model ask (uses OPENROUTER_* from ~/.sentineldev/.env)
-sentinel modal --ask "Explain SSRF in one paragraph"
+# Model ask (uses OPENROUTER_* from ~/.manertdev/.env)
+manert modal --ask "Explain SSRF in one paragraph"
 ```
 
 ## Deploy (optional)
 
 ```bash
-python -m modal deploy modal_app/sentinel.py
+python -m modal deploy modal_app/manert.py
 ```

@@ -165,7 +165,7 @@ export async function probeSupabase(): Promise<{
 
   return {
     ok: true,
-    message: `Connected to Sentinel Dev (${status.projectRef}) using ${status.keyType} key.`,
+    message: `Connected to ManertDev (${status.projectRef}) using ${status.keyType} key.`,
     details: status,
   };
 }

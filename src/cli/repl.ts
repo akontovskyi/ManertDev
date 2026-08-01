@@ -1,5 +1,5 @@
 /**
- * Interactive real-time AI REPL for SentinelDev.
+ * Interactive real-time AI REPL for ManertDev.
  * Every message streams through NVIDIA Nemotron (OpenAI-compatible).
  * Local scanners run only for security questions — they feed evidence, AI speaks.
  */
@@ -18,20 +18,20 @@ import {
 import { reportToFixLogs } from "../lib/report";
 import { persistFixLogs } from "../lib/supabase";
 import {
-  SENTINEL_SYSTEM_PROMPT,
+  MANERT_SYSTEM_PROMPT,
   getNvidiaConfig,
-  streamSentinelChat,
+  streamManertChat,
   isSecurityQuestion,
 } from "../lib/nvidia";
 import { analyzeLocally } from "../lib/local-analyst";
 import { compactReport } from "../lib/scan-evidence";
 import { editorLabel } from "../lib/editor";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import type { SentinelReport } from "../lib/types";
+import type { ManertReport } from "../lib/types";
 
 export async function startRepl(opts?: { root?: string }): Promise<void> {
   let root = path.resolve(
-    opts?.root || process.env.SENTINEL_SCAN_ROOT || process.cwd(),
+    opts?.root || process.env.MANERT_SCAN_ROOT || process.cwd(),
   );
   // Prefer any available key (fallback counts) so general chat works
   const cfg = getNvidiaConfig({ preferFallback: true }) || getNvidiaConfig();
@@ -40,7 +40,7 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
 
   console.log("");
   console.log(
-    bannerPublic("Welcome to SentinelDev — real-time AI in your terminal"),
+    bannerPublic("Welcome to ManertDev — real-time AI in your terminal"),
   );
   console.log("");
   console.log(asciiLogoPublic());
@@ -61,7 +61,7 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
     c.muted(
       aiEnabled
         ? `model:   LIVE · ${cfg!.model} · multi-fallback`
-        : "model:   OFF — set model keys in ~/.sentineldev/.env",
+        : "model:   OFF — set model keys in ~/.manertdev/.env",
     ),
   );
   console.log("");
@@ -76,14 +76,14 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
   if (!aiEnabled) {
     console.log(
       c.yellow(
-        "No model keys — chat limited. Add OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY to ~/.sentineldev/.env then restart.",
+        "No model keys — chat limited. Add OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY to ~/.manertdev/.env then restart.",
       ),
     );
     console.log("");
   }
 
   const history: ChatCompletionMessageParam[] = [
-    { role: "system", content: SENTINEL_SYSTEM_PROMPT },
+    { role: "system", content: MANERT_SYSTEM_PROMPT },
   ];
 
   const rl = readline.createInterface({
@@ -97,7 +97,7 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const line = (await ask(c.smartBlue("sentinel> "))).trim();
+    const line = (await ask(c.smartBlue("manert> "))).trim();
     if (!line) continue;
 
     if (
@@ -204,7 +204,7 @@ async function handleSlash(
   }
 
   console.log(c.dim(`Local scan (${kind}) → ${scanRoot}`));
-  let report: SentinelReport;
+  let report: ManertReport;
   try {
     report = await runScan({
       root: scanRoot,
@@ -308,13 +308,13 @@ async function handleChat(
     if (security) {
       console.log(
         c.yellow(
-          "Model offline — showing local ranking only. Set model keys in ~/.sentineldev/.env",
+          "Model offline — showing local ranking only. Set model keys in ~/.manertdev/.env",
         ),
       );
     } else {
       console.log(
         c.yellow(
-          "Model offline — add OPENROUTER_FALLBACK_API_KEY (or OPENROUTER_API_KEY) to ~/.sentineldev/.env",
+          "Model offline — add OPENROUTER_FALLBACK_API_KEY (or OPENROUTER_API_KEY) to ~/.manertdev/.env",
         ),
       );
     }
@@ -322,12 +322,12 @@ async function handleChat(
     return;
   }
 
-  console.log(c.smartBlue("SentinelDev · live model"));
+  console.log(c.smartBlue("ManertDev · live model"));
   console.log("");
   await streamAi(history, showThinking, preferFallback);
 }
 
-function printLocalBrief(report: SentinelReport): void {
+function printLocalBrief(report: ManertReport): void {
   const a = analyzeLocally(report);
   console.log("");
   console.log(
@@ -354,7 +354,7 @@ async function streamAi(
 ): Promise<void> {
   let sawReasoning = false;
   try {
-    const content = await streamSentinelChat({
+    const content = await streamManertChat({
       messages: history,
       temperature: 1.05,
       maxTokens: 4096,
@@ -392,7 +392,7 @@ async function streamAi(
     );
     console.log(
       c.dim(
-        "Local tools still work: /scan /endpoints /env /db /ossprey  ·  check model keys in ~/.sentineldev/.env",
+        "Local tools still work: /scan /endpoints /env /db /ossprey  ·  check model keys in ~/.manertdev/.env",
       ),
     );
     console.log("");
@@ -404,7 +404,7 @@ async function streamAi(
   }
 }
 
-async function persistQuiet(report: SentinelReport) {
+async function persistQuiet(report: ManertReport) {
   try {
     const rows = reportToFixLogs(report);
     const persist = await persistFixLogs(rows);

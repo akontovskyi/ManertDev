@@ -1,8 +1,8 @@
-# SentinelDev
+# ManertDev
 
 AI-powered **in-development** security helper — “Denuvo for apps” while you build.
 
-SentinelDev analyzes codebases, configs, API routes, and IAM-like documents to find exposure risks. It **never modifies your code automatically**. It only proposes remediations, patches, and secure rewrites.
+ManertDev analyzes codebases, configs, API routes, and IAM-like documents to find exposure risks. It **never modifies your code automatically**. It only proposes remediations, patches, and secure rewrites.
 
 ## Features
 

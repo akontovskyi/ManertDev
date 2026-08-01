@@ -1,4 +1,4 @@
-/** Build a paste-ready agent/Cursor prompt from a SentinelDev finding. */
+/** Build a paste-ready agent/Cursor prompt from a ManertDev finding. */
 
 export type FixPromptFinding = {
   id: string;
@@ -24,7 +24,7 @@ export function buildFixPrompt(finding: FixPromptFinding): string {
     : finding.evidence.file;
 
   const lines = [
-    `Fix this security issue found by SentinelDev. Apply only the remediation below; do not change unrelated code or weaken security elsewhere.`,
+    `Fix this security issue found by ManertDev. Apply only the remediation below; do not change unrelated code or weaken security elsewhere.`,
     ``,
     `Issue: [${finding.severity}] ${finding.title}`,
     `ID: ${finding.id}`,

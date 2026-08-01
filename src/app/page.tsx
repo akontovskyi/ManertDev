@@ -6,7 +6,7 @@ export default function HomePage() {
     <main style={styles.main}>
       <div style={styles.atmosphere} aria-hidden />
       <header style={styles.header}>
-        <p style={styles.brand}>SentinelDev</p>
+        <p style={styles.brand}>ManertDev</p>
         <nav style={styles.nav}>
           <Link href="/dashboard" style={styles.navLink}>
             Open dashboard
@@ -15,7 +15,7 @@ export default function HomePage() {
       </header>
 
       <section style={styles.hero}>
-        <h1 style={styles.brandHero}>SentinelDev</h1>
+        <h1 style={styles.brandHero}>ManertDev</h1>
         <p style={styles.tagline}>
           Denuvo for apps in development — catch exposure risks before they ship.
         </p>

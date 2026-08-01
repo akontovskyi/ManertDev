@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Finding, FixLogRow, ProblemType, ProjectContext, SentinelReport } from "./types";
+import type { Finding, FixLogRow, ProblemType, ProjectContext, ManertReport } from "./types";
 
 const PROBLEM_BY_CATEGORY: Record<string, ProblemType> = {
   endpoints: "exposed_endpoint",
@@ -27,20 +27,20 @@ export function inferProblemType(finding: Finding): ProblemType {
   return PROBLEM_BY_CATEGORY[finding.category] || "general";
 }
 
-/** Load project name/details from env + optional .sentineldev/project.json */
+/** Load project name/details from env + optional .manertdev/project.json */
 export function loadProjectContext(root?: string): ProjectContext {
   const base = root || process.cwd();
   let name =
-    process.env.SENTINEL_PROJECT_NAME ||
+    process.env.MANERT_PROJECT_NAME ||
     process.env.npm_package_name ||
     path.basename(base);
   let details =
-    process.env.SENTINEL_PROJECT_DETAILS ||
-    "SentinelDev-scanned project (set SENTINEL_PROJECT_DETAILS or .sentineldev/project.json)";
+    process.env.MANERT_PROJECT_DETAILS ||
+    "ManertDev-scanned project (set MANERT_PROJECT_DETAILS or .manertdev/project.json)";
 
   const candidates = [
-    path.join(base, ".sentineldev", "project.json"),
-    path.join(base, "sentinel.project.json"),
+    path.join(base, ".manertdev", "project.json"),
+    path.join(base, "manert.project.json"),
   ];
   for (const p of candidates) {
     try {
@@ -61,13 +61,13 @@ export function loadProjectContext(root?: string): ProjectContext {
   // package.json name fallback
   try {
     const pkgPath = path.join(base, "package.json");
-    if ((!process.env.SENTINEL_PROJECT_NAME) && fs.existsSync(pkgPath)) {
+    if ((!process.env.MANERT_PROJECT_NAME) && fs.existsSync(pkgPath)) {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as {
         name?: string;
         description?: string;
       };
       if (pkg.name && name === path.basename(base)) name = pkg.name;
-      if (pkg.description && details.startsWith("SentinelDev-scanned")) {
+      if (pkg.description && details.startsWith("ManertDev-scanned")) {
         details = pkg.description;
       }
     }
@@ -82,7 +82,7 @@ export function saveProjectContext(
   root: string,
   ctx: ProjectContext,
 ): string {
-  const dir = path.join(root, ".sentineldev");
+  const dir = path.join(root, ".manertdev");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const dest = path.join(dir, "project.json");
   fs.writeFileSync(
@@ -132,13 +132,13 @@ export function findingToFixLog(
   };
 }
 
-export function reportToFixLogs(report: SentinelReport): FixLogRow[] {
+export function reportToFixLogs(report: ManertReport): FixLogRow[] {
   const project = report.project || loadProjectContext(report.targetPath);
   return report.findings.map((f) => findingToFixLog(f, project));
 }
 
-/** Markdown report in the mandatory SentinelDev output shape. */
-export function formatReportMarkdown(report: SentinelReport): string {
+/** Markdown report in the mandatory ManertDev output shape. */
+export function formatReportMarkdown(report: ManertReport): string {
   const findingsBlock =
     report.findings.length === 0
       ? "_No security findings for this scan._"

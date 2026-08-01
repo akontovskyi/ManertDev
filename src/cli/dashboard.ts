@@ -1,5 +1,5 @@
 /**
- * Open the SentinelDev frontend dashboard with scan root = where `sentinel` ran.
+ * Open the ManertDev frontend dashboard with scan root = where `manert` ran.
  */
 
 import { spawn } from "node:child_process";
@@ -15,7 +15,7 @@ function packageRoot(): string {
 
 function dashboardPort(): number {
   const raw =
-    process.env.SENTINEL_DASHBOARD_PORT ||
+    process.env.MANERT_DASHBOARD_PORT ||
     process.env.PORT ||
     "3000";
   const n = Number(raw);
@@ -24,7 +24,7 @@ function dashboardPort(): number {
 
 function dashboardBaseUrl(port: number): string {
   return (
-    process.env.SENTINEL_DASHBOARD_URL || `http://127.0.0.1:${port}`
+    process.env.MANERT_DASHBOARD_URL || `http://127.0.0.1:${port}`
   ).replace(/\/$/, "");
 }
 
@@ -85,13 +85,13 @@ function startNextDev(opts: {
   );
   if (!fs.existsSync(nextBin)) {
     throw new Error(
-      `Next.js not found at ${nextBin}. From the SentinelDev package run: npm install`,
+      `Next.js not found at ${nextBin}. From the ManertDev package run: npm install`,
     );
   }
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    SENTINEL_SCAN_ROOT: opts.scanRoot,
+    MANERT_SCAN_ROOT: opts.scanRoot,
     PORT: String(opts.port),
   };
   // Ensure system CA for Windows TLS (Supabase / OpenRouter from Next)
@@ -120,7 +120,7 @@ export async function openDashboard(opts?: {
   port?: number;
 }): Promise<void> {
   const scanRoot = path.resolve(
-    opts?.root || process.env.SENTINEL_SCAN_ROOT || process.cwd(),
+    opts?.root || process.env.MANERT_SCAN_ROOT || process.cwd(),
   );
   const port = opts?.port || dashboardPort();
   const base = dashboardBaseUrl(port);
@@ -129,7 +129,7 @@ export async function openDashboard(opts?: {
   const pkgRoot = packageRoot();
 
   console.log("");
-  console.log(c.smartBlue("SentinelDev dashboard"));
+  console.log(c.smartBlue("ManertDev dashboard"));
   console.log(c.dim(`  scan root: ${scanRoot}`));
   console.log(c.dim(`  url:       ${dashUrl}`));
 

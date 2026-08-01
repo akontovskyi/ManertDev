@@ -3,7 +3,7 @@
  *
  * Priority (later wins for overrides):
  *   1) project .env / .env.local  (non-secrets only — no API keys expected)
- *   2) ~/.sentineldev/.env        (REAL secrets — never in git)
+ *   2) ~/.manertdev/.env        (REAL secrets — never in git)
  */
 
 import fs from "node:fs";
@@ -29,7 +29,7 @@ const SECRET_KEYS = new Set([
 ]);
 
 export function userSecretsPath(): string {
-  return path.join(os.homedir(), ".sentineldev", ".env");
+  return path.join(os.homedir(), ".manertdev", ".env");
 }
 
 function applyEnvFile(
@@ -100,18 +100,18 @@ export function loadEnvFiles(packageRootHint?: string) {
 }
 
 /**
- * Ensure ~/.sentineldev exists. Does NOT copy project .env.local anymore
+ * Ensure ~/.manertdev exists. Does NOT copy project .env.local anymore
  * (that would pull secrets back into a sync path from the workspace).
  */
 export function ensureUserEnv(): string {
-  const homeDir = path.join(os.homedir(), ".sentineldev");
+  const homeDir = path.join(os.homedir(), ".manertdev");
   if (!fs.existsSync(homeDir)) fs.mkdirSync(homeDir, { recursive: true });
   const dest = userSecretsPath();
   if (!fs.existsSync(dest)) {
     fs.writeFileSync(
       dest,
       [
-        "# SentinelDev secrets (outside project)",
+        "# ManertDev secrets (outside project)",
         "# OPENROUTER_API_KEY=...              # primary (security keywords)",
         "# OPENROUTER_FALLBACK_API_KEY=...     # general chat + failure fallback",
         "# OSSPREY_API_KEY=ospy_...            # supply-chain malware scans",

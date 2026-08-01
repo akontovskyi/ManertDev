@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const kind = kindFromString(body.kind);
-    const rootInput = String(body.root || process.env.SENTINEL_SCAN_ROOT || ".");
+    const rootInput = String(body.root || process.env.MANERT_SCAN_ROOT || ".");
     const root = resolveScanRoot(rootInput);
     const query = String(body.query || kind);
 

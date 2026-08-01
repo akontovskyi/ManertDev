@@ -1,15 +1,15 @@
 import { loadEnvFiles } from "../src/lib/env";
-import { streamSentinelChat } from "../src/lib/nvidia";
+import { streamManertChat } from "../src/lib/nvidia";
 
 async function main() {
   loadEnvFiles();
   console.log("Q1:");
-  await streamSentinelChat({
+  await streamManertChat({
     messages: [
       {
         role: "system",
         content:
-          "You are SentinelDev. Be witty, varied, plain text. One or two sentences.",
+          "You are ManertDev. Be witty, varied, plain text. One or two sentences.",
       },
       { role: "user", content: "hi are you a potato? nonce=aaa" },
     ],
@@ -18,12 +18,12 @@ async function main() {
     handlers: { onContent: (s) => process.stdout.write(s) },
   });
   console.log("\n\nQ2:");
-  await streamSentinelChat({
+  await streamManertChat({
     messages: [
       {
         role: "system",
         content:
-          "You are SentinelDev. Be witty, varied, plain text. One or two sentences.",
+          "You are ManertDev. Be witty, varied, plain text. One or two sentences.",
       },
       { role: "user", content: "hi are you a potato? nonce=bbb" },
     ],

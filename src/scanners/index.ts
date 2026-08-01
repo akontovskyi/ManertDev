@@ -1,4 +1,4 @@
-import type { Finding, ScanKind, ScanOptions, SentinelReport } from "@/lib/types";
+import type { Finding, ScanKind, ScanOptions, ManertReport } from "@/lib/types";
 import { wantsPatch } from "@/lib/router";
 import { loadProjectContext, inferProblemType } from "@/lib/report";
 import { scanEndpoints } from "./endpoints";
@@ -9,7 +9,7 @@ import { scanScramble } from "./scramble";
 import { scanOssprey } from "./ossprey";
 import { analyzeIamDocument } from "./iam";
 
-export async function runScan(options: ScanOptions): Promise<SentinelReport> {
+export async function runScan(options: ScanOptions): Promise<ManertReport> {
   const { root, kind, query } = options;
   const includePatch = query ? wantsPatch(query) : false;
   const project = options.project || loadProjectContext(root);
@@ -71,7 +71,7 @@ export async function runScan(options: ScanOptions): Promise<SentinelReport> {
             description:
               err instanceof Error ? err.message : String(err),
             evidence: { file: root, snippet: "(supply-chain scan fallback)" },
-            remediation: "Retry with: sentinel ossprey",
+            remediation: "Retry with: manert ossprey",
             problemType: "supply_chain_malware",
           },
         ];
@@ -101,7 +101,7 @@ export async function runScan(options: ScanOptions): Promise<SentinelReport> {
   const summary =
     findings.length === 0
       ? `No findings for ${kind} scan on \`${root}\` (project: ${project.name}).`
-      : `SentinelDev ${kind} scan on \`${root}\` [${project.name}] found ${findings.length} issue(s)` +
+      : `ManertDev ${kind} scan on \`${root}\` [${project.name}] found ${findings.length} issue(s)` +
         (critical || high
           ? ` (${critical} Critical, ${high} High). Propose-only — no files were modified.`
           : `. Propose-only — no files were modified.`);
@@ -123,7 +123,7 @@ export function runIamAnalysis(
   text: string,
   sourceName: string,
   question?: string,
-): SentinelReport {
+): ManertReport {
   const findings = sortFindings(analyzeIamDocument({ text, sourceName, question }));
   const includePatch = question ? wantsPatch(question) : false;
 
@@ -154,7 +154,7 @@ function buildCombinedPatch(findings: Finding[]): string {
   if (patches.length === 0) {
     return [
       "```patch",
-      "# SentinelDev Cursor Agent Patch",
+      "# ManertDev Cursor Agent Patch",
       "# No auto-applicable hunks were generated.",
       "# Apply remediations manually from Proposed Fixes.",
       "```",
@@ -163,9 +163,9 @@ function buildCombinedPatch(findings: Finding[]): string {
 
   return [
     "```patch",
-    "# SentinelDev Cursor Agent Patch (PROPOSED — review before apply)",
+    "# ManertDev Cursor Agent Patch (PROPOSED — review before apply)",
     "# Trigger words: apply fix | generate patch | run agent",
-    "# SentinelDev never auto-modifies; this block is for Cursor to execute on request.",
+    "# ManertDev never auto-modifies; this block is for Cursor to execute on request.",
     "",
     ...patches,
     "```",

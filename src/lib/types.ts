@@ -1,4 +1,4 @@
-/** Shared types for SentinelDev findings, reports, and fix logs. */
+/** Shared types for ManertDev findings, reports, and fix logs. */
 
 export type Severity = "Critical" | "High" | "Medium" | "Low" | "Info";
 
@@ -49,7 +49,7 @@ export interface ProjectContext {
   details: string;
 }
 
-export interface SentinelReport {
+export interface ManertReport {
   summary: string;
   findings: Finding[];
   evidence: Evidence[];

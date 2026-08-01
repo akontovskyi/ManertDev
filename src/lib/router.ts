@@ -72,7 +72,7 @@ export function buildModalTaskDescription(opts: {
   query: string;
 }): string {
   return [
-    `SentinelDev Modal Job`,
+    `ManertDev Modal Job`,
     `====================`,
     `Target: ${opts.root}`,
     `Scan kind: ${opts.kind}`,
@@ -83,7 +83,7 @@ export function buildModalTaskDescription(opts: {
     `2. Run the "${opts.kind}" scanner suite (endpoints, secrets, entrances, database as applicable).`,
     `3. Never invent endpoints, keys, or permissions. Cite exact file:line + snippet.`,
     `4. Never modify files. Only propose remediations and optional unified diffs.`,
-    `5. Return JSON matching SentinelReport + FixLogRow[].`,
+    `5. Return JSON matching ManertReport + FixLogRow[].`,
     `6. Severity: Critical | High | Medium | Low | Info.`,
   ].join("\n");
 }

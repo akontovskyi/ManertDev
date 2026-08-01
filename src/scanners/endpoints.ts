@@ -154,7 +154,7 @@ function proposeAuthGuard(file: string, routePath: string): string {
     `--- a/${file}`,
     `+++ b/${file}`,
     `@@`,
-    `+// SentinelDev proposed guard (DO NOT apply blindly — adapt to your auth stack)`,
+    `+// ManertDev proposed guard (DO NOT apply blindly — adapt to your auth stack)`,
     `+import { requireSession } from "@/lib/auth";`,
     `+`,
     `+// Before handling ${routePath}:`,

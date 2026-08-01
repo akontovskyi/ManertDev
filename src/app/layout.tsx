@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SentinelDev — in-development security helper",
+  title: "ManertDev — in-development security helper",
   description:
     "Detect exposure risks early. Propose safe fixes. Never auto-modify your code.",
 };

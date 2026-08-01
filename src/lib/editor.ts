@@ -1,11 +1,11 @@
 /**
  * Detect which IDE owns this terminal so jump-links open in the right app.
- * Override with SENTINEL_EDITOR=cursor|vscode|auto
+ * Override with MANERT_EDITOR=cursor|vscode|auto
  */
 export type EditorKind = "cursor" | "vscode";
 
 export function detectEditor(): EditorKind {
-  const forced = (process.env.SENTINEL_EDITOR || "auto").toLowerCase();
+  const forced = (process.env.MANERT_EDITOR || "auto").toLowerCase();
   if (forced === "cursor") return "cursor";
   if (forced === "vscode") return "vscode";
 

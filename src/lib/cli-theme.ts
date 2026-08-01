@@ -1,10 +1,10 @@
 /**
- * Terminal-native CLI theme for SentinelDev.
+ * Terminal-native CLI theme for ManertDev.
  * Plain-text friendly, ANSI colors only — no web/markdown UI.
  */
 
 import path from "node:path";
-import type { Finding, FixLogRow, SentinelReport, Severity } from "./types";
+import type { Finding, FixLogRow, ManertReport, Severity } from "./types";
 import { reportToFixLogs } from "./report";
 import { detectEditor, editorLabel, editorScheme } from "./editor";
 
@@ -54,16 +54,16 @@ export function bannerPublic(text: string): string {
 }
 
 function asciiLogo(): string {
-  const sentinel = [
-    "███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗     ",
-    "██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║     ",
-    "███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║     ",
-    "╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║     ",
-    "███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗",
-    "╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝",
+  const manert = [
+    "███╗   ███╗ █████╗ ███╗   ██╗███████╗██████╗ ████████╗",
+    "████╗ ████║██╔══██╗████╗  ██║██╔════╝██╔══██╗╚══██╔══╝",
+    "██╔████╔██║███████║██╔██╗ ██║█████╗  ██████╔╝   ██║   ",
+    "██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══╝  ██╔══██╗   ██║   ",
+    "██║ ╚═╝ ██║██║  ██║██║ ╚████║███████╗██║  ██║   ██║   ",
+    "╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝   ╚═╝   ",
   ].map((l) => c.smartBlue(l));
 
-  const indent = "                    ";
+  const indent = "               ";
   const dev = [
     "",
     `${indent}██████╗ ███████╗██╗   ██╗`,
@@ -74,7 +74,7 @@ function asciiLogo(): string {
     `${indent}╚═════╝ ╚══════╝  ╚═══╝  `,
   ].map((l) => c.smartBlue(l));
 
-  return [...sentinel, ...dev].join("\n");
+  return [...manert, ...dev].join("\n");
 }
 
 export function asciiLogoPublic(): string {
@@ -279,13 +279,13 @@ function formatProposedFix(text: string, index: number): string {
   return numberedItem(index, text.slice(0, 80), text, (s) => c.greenBold(s));
 }
 
-export function formatCliReport(report: SentinelReport): string {
+export function formatCliReport(report: ManertReport): string {
   const parts: string[] = [];
   const root = report.targetPath;
   const ide = editorLabel();
 
   parts.push("");
-  parts.push(banner("Welcome to SentinelDev — propose-only security helper"));
+  parts.push(banner("Welcome to ManertDev — propose-only security helper"));
   parts.push("");
   parts.push(asciiLogo());
   parts.push("");
@@ -375,7 +375,7 @@ export function formatCliReport(report: SentinelReport): string {
   } else {
     parts.push(
       c.dim(
-        "  Not generated — run: sentinel fix <issue-id>   or   sentinel ask \"apply fix\"",
+        "  Not generated — run: manert fix <issue-id>   or   manert ask \"apply fix\"",
       ),
     );
   }
@@ -395,7 +395,7 @@ export function formatCliReport(report: SentinelReport): string {
   parts.push(
     numberedItem(
       1,
-      "SentinelDev never auto-modifies your codebase",
+      "ManertDev never auto-modifies your codebase",
       "It only proposes remediations and optional patches. You decide what to apply.",
     ),
   );
@@ -419,7 +419,7 @@ export function formatCliReport(report: SentinelReport): string {
   parts.push("");
   parts.push(
     c.violet(
-      "  Next: sentinel fix <id>  ·  sentinel install  ·  sentinel supabase",
+      "  Next: manert fix <id>  ·  manert install  ·  manert supabase",
     ),
   );
   parts.push("");
@@ -430,7 +430,7 @@ export function formatCliReport(report: SentinelReport): string {
 export function formatCliHelp(): string {
   return [
     "",
-    banner("Welcome to SentinelDev CLI"),
+    banner("Welcome to ManertDev CLI"),
     "",
     asciiLogo(),
     "",
@@ -444,10 +444,10 @@ export function formatCliHelp(): string {
   ].join("\n");
 }
 
-/** Full command + example list for `sentinel` REPL welcome and /help. */
+/** Full command + example list for `manert` REPL welcome and /help. */
 export function formatCommandExamples(): string {
   return [
-    sectionHeader("Interactive chat (inside sentinel>)"),
+    sectionHeader("Interactive chat (inside manert>)"),
     c.white("  Just type naturally"),
     c.dim('      hi'),
     c.dim('      find exposed endpoints'),
@@ -477,54 +477,54 @@ export function formatCommandExamples(): string {
     c.dim("      /exit"),
     "",
     sectionHeader("Shell commands (another terminal, or after /exit)"),
-    c.white("  sentinel"),
+    c.white("  manert"),
     c.dim("      Open interactive live-model chat"),
     "",
-    c.white("  sentinel dashboard"),
-    c.dim("      Open the web dashboard; scan root = where you ran sentinel"),
-    c.dim("      sentinel dashboard"),
-    c.dim("      sentinel dashboard --root C:\\path\\to\\app"),
-    c.dim("      sentinel ui"),
+    c.white("  manert dashboard"),
+    c.dim("      Open the web dashboard; scan root = where you ran manert"),
+    c.dim("      manert dashboard"),
+    c.dim("      manert dashboard --root C:\\path\\to\\app"),
+    c.dim("      manert ui"),
     "",
-    c.white("  sentinel scan [path]"),
-    c.dim("      sentinel scan ."),
-    c.dim("      sentinel scan ./src --endpoints"),
-    c.dim("      sentinel scan . --env"),
-    c.dim("      sentinel scan . --db"),
-    c.dim("      sentinel scan . --admin"),
-    c.dim("      sentinel scan . --ossprey"),
+    c.white("  manert scan [path]"),
+    c.dim("      manert scan ."),
+    c.dim("      manert scan ./src --endpoints"),
+    c.dim("      manert scan . --env"),
+    c.dim("      manert scan . --db"),
+    c.dim("      manert scan . --admin"),
+    c.dim("      manert scan . --ossprey"),
     "",
-    c.white("  sentinel ask \"...\""),
-    c.dim('      sentinel ask "find exposed endpoints"'),
-    c.dim('      sentinel ask "any leaked secrets?"'),
+    c.white("  manert ask \"...\""),
+    c.dim('      manert ask "find exposed endpoints"'),
+    c.dim('      manert ask "any leaked secrets?"'),
     "",
-    c.white("  sentinel ossprey [path]"),
-    c.dim("      sentinel ossprey"),
-    c.dim("      sentinel ossprey ."),
+    c.white("  manert ossprey [path]"),
+    c.dim("      manert ossprey"),
+    c.dim("      manert ossprey ."),
     "",
-    c.white("  sentinel modal …"),
-    c.dim("      sentinel modal --ping"),
-    c.dim('      sentinel modal "deep scan"'),
-    c.dim("      sentinel modal --narrate \"full scan\""),
-    c.dim('      sentinel modal --ask "explain SSRF"'),
+    c.white("  manert modal …"),
+    c.dim("      manert modal --ping"),
+    c.dim('      manert modal "deep scan"'),
+    c.dim("      manert modal --narrate \"full scan\""),
+    c.dim('      manert modal --ask "explain SSRF"'),
     c.dim("      (Modal cloud scan / live model ask)"),
     "",
-    c.white("  sentinel explain|fix|diff"),
-    c.dim("      sentinel explain fixtures/vulnerable-sample.ts"),
-    c.dim("      sentinel fix <issue-id>"),
-    c.dim("      sentinel diff fixtures/vulnerable-sample.ts"),
+    c.white("  manert explain|fix|diff"),
+    c.dim("      manert explain fixtures/vulnerable-sample.ts"),
+    c.dim("      manert fix <issue-id>"),
+    c.dim("      manert diff fixtures/vulnerable-sample.ts"),
     "",
-    c.white("  sentinel project|logs|mark-fixed"),
-    c.dim("      sentinel project"),
-    c.dim('      sentinel project set --name "MyApp" --details "API backend"'),
-    c.dim("      sentinel logs"),
-    c.dim("      sentinel mark-fixed <fix-log-id>"),
+    c.white("  manert project|logs|mark-fixed"),
+    c.dim("      manert project"),
+    c.dim('      manert project set --name "MyApp" --details "API backend"'),
+    c.dim("      manert logs"),
+    c.dim("      manert mark-fixed <fix-log-id>"),
     "",
-    c.white("  sentinel supabase|status|install|help"),
-    c.dim("      sentinel supabase"),
-    c.dim("      sentinel status"),
-    c.dim("      sentinel install"),
-    c.dim("      sentinel help"),
+    c.white("  manert supabase|status|install|help"),
+    c.dim("      manert supabase"),
+    c.dim("      manert status"),
+    c.dim("      manert install"),
+    c.dim("      manert help"),
     "",
     sectionHeader("Keyword routing (chat / ask / scan)"),
     c.dim("  endpoint, route, public, exposed  → endpoints"),
@@ -542,23 +542,23 @@ export function formatCommandExamples(): string {
 export function formatInstallSteps(projectRoot: string): string {
   const root = projectRoot.replace(/\\/g, "/");
   return `
-${banner("SentinelDev — global CLI install (manual)")}
+${banner("ManertDev — global CLI install (manual)")}
 
 STEP 1 — Create a CLI entry point file
 --------------------------------------
-The repo already ships sentinel.js at the project root:
+The repo already ships manert.js at the project root:
 
   #!/usr/bin/env node
   // loads src/cli/index.ts via tsx
 
 On macOS/Linux, make it executable:
 
-  chmod +x sentinel.js
+  chmod +x manert.js
 
 Windows: use npm bin linking (Step 2) — no chmod needed.
 
 
-STEP 2 — Install SentinelDev globally
+STEP 2 — Install ManertDev globally
 -------------------------------------
 From the project folder (${root}):
 
@@ -568,18 +568,18 @@ From the project folder (${root}):
 package.json bin mapping:
 
   "bin": {
-    "sentinel": "./sentinel.js"
+    "manert": "./manert.js"
   }
 
-This registers the 'sentinel' command on your PATH via npm.
+This registers the 'manert' command on your PATH via npm.
 
 
-STEP 3 — Add SentinelDev to PATH (if needed)
+STEP 3 — Add ManertDev to PATH (if needed)
 --------------------------------------------
-If 'sentinel' is not found after npm install -g:
+If 'manert' is not found after npm install -g:
 
   macOS / Linux:
-    sudo ln -sf "$(npm root -g)/sentineldev/sentinel.js" /usr/local/bin/sentinel
+    sudo ln -sf "$(npm root -g)/manertdev/manert.js" /usr/local/bin/manert
     # or:
     export PATH="$PATH:$(npm bin -g)"
 
@@ -594,31 +594,31 @@ Or run without global install:
 
 STEP 4 — Verify installation
 ----------------------------
-  sentinel --help
-  sentinel scan .
-  sentinel scan --endpoints
-  sentinel supabase
+  manert --help
+  manert scan .
+  manert scan --endpoints
+  manert supabase
 
 
 STEP 5 — Optional: shell aliases / auto-start
 ---------------------------------------------
 Add to ~/.zshrc, ~/.bashrc, or PowerShell profile:
 
-  alias sentinel="sentinel"
+  alias manert="manert"
 
 Optional watch-style reminder (manual alias):
 
-  alias sentinel-watch='sentinel scan .'
+  alias manert-watch='manert scan .'
 
 Editor jump links:
-  SENTINEL_EDITOR=cursor   # force Cursor
-  SENTINEL_EDITOR=vscode   # force VS Code
+  MANERT_EDITOR=cursor   # force Cursor
+  MANERT_EDITOR=vscode   # force VS Code
   (default: auto-detect; prefers Cursor)
 
 Supabase (.env.local — never commit):
   NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
-${c.violet("After install, run:  sentinel scan .")}
+${c.violet("After install, run:  manert scan .")}
 `.trimStart();
 }

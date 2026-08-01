@@ -1,5 +1,5 @@
 /**
- * Modal cloud runner for SentinelDev heavy scans + hosted model asks.
+ * Modal cloud runner for ManertDev heavy scans + hosted model asks.
  */
 
 import { spawn } from "node:child_process";
@@ -26,7 +26,7 @@ export function getModalConfigStatus(): {
     hasToml,
     hasEnvTokens,
     profile: process.env.MODAL_PROFILE,
-    python: process.env.SENTINEL_PYTHON || "python",
+    python: process.env.MANERT_PYTHON || "python",
   };
 }
 
@@ -35,7 +35,7 @@ function packageRoot(): string {
 }
 
 function modalAppPath(): string {
-  return path.join(packageRoot(), "modal_app", "sentinel.py");
+  return path.join(packageRoot(), "modal_app", "manert.py");
 }
 
 export async function collectModalFiles(
@@ -89,11 +89,11 @@ export async function collectModalFiles(
 }
 
 function extractJson(blob: string): unknown | null {
-  const start = blob.lastIndexOf("SENTINEL_JSON_START");
-  const end = blob.lastIndexOf("SENTINEL_JSON_END");
+  const start = blob.lastIndexOf("MANERT_JSON_START");
+  const end = blob.lastIndexOf("MANERT_JSON_END");
   if (start >= 0 && end > start) {
     const slice = blob
-      .slice(start + "SENTINEL_JSON_START".length, end)
+      .slice(start + "MANERT_JSON_START".length, end)
       .trim();
     try {
       return JSON.parse(slice);
@@ -142,7 +142,7 @@ function runModal(
   cliArgs: string[],
   opts?: { timeoutMs?: number },
 ): Promise<unknown> {
-  const py = process.env.SENTINEL_PYTHON || "python";
+  const py = process.env.MANERT_PYTHON || "python";
   const env = {
     ...process.env,
     PYTHONUTF8: process.env.PYTHONUTF8 || "1",
@@ -212,7 +212,7 @@ export async function probeModal(): Promise<{
     const out = await runModal(["--ping-only"], { timeoutMs: 180_000 });
     return {
       ok: true,
-      message: "Modal connected (sentineldev app)",
+      message: "Modal connected (manertdev app)",
       details: out,
     };
   } catch (err) {
@@ -246,7 +246,7 @@ export async function runModalHeavyScan(opts: {
 
   const jobPath = path.join(
     os.tmpdir(),
-    `sentinel-modal-payload-${Date.now()}.json`,
+    `manert-modal-payload-${Date.now()}.json`,
   );
   fs.writeFileSync(jobPath, JSON.stringify(payload), "utf8");
   try {
@@ -278,7 +278,7 @@ export async function runModalAsk(opts: {
 
   const jobPath = path.join(
     os.tmpdir(),
-    `sentinel-modal-ask-${Date.now()}.json`,
+    `manert-modal-ask-${Date.now()}.json`,
   );
   fs.writeFileSync(jobPath, JSON.stringify(payload), "utf8");
   try {

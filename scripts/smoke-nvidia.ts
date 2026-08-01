@@ -1,5 +1,5 @@
 import { loadEnvFiles } from "../src/lib/env";
-import { getNvidiaConfig, streamSentinelChat } from "../src/lib/nvidia";
+import { getNvidiaConfig, streamManertChat } from "../src/lib/nvidia";
 
 async function main() {
   loadEnvFiles();
@@ -12,13 +12,13 @@ async function main() {
     console.error("No NVIDIA config");
     process.exit(1);
   }
-  const t = await streamSentinelChat({
+  const t = await streamManertChat({
     messages: [
       {
         role: "system",
-        content: "You are SentinelDev. Reply in one short plain sentence.",
+        content: "You are ManertDev. Reply in one short plain sentence.",
       },
-      { role: "user", content: "Say hello as SentinelDev in one sentence." },
+      { role: "user", content: "Say hello as ManertDev in one sentence." },
     ],
     handlers: {
       onReasoning: (s) => process.stdout.write(s),

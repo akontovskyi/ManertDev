@@ -1,9 +1,9 @@
 /**
  * Local analyst — deterministic security reasoning with ZERO LLM calls.
- * This is the core of SentinelDev. NVIDIA/Nemotron is optional narration only.
+ * This is the core of ManertDev. NVIDIA/Nemotron is optional narration only.
  */
 
-import type { Finding, SentinelReport, Severity } from "./types";
+import type { Finding, ManertReport, Severity } from "./types";
 
 const RANK: Record<Severity, number> = {
   Critical: 100,
@@ -24,7 +24,7 @@ export interface LocalAnalysis {
   offlineNarrative: string;
 }
 
-export function analyzeLocally(report: SentinelReport): LocalAnalysis {
+export function analyzeLocally(report: ManertReport): LocalAnalysis {
   const findings = [...report.findings];
   const bySeverity: Record<string, number> = {};
   const byCategory: Record<string, number> = {};
@@ -95,7 +95,7 @@ function buildActions(priority: Finding[]): string[] {
 }
 
 function buildOfflineNarrative(
-  report: SentinelReport,
+  report: ManertReport,
   analysis: LocalAnalysis,
 ): string {
   const lines: string[] = [];

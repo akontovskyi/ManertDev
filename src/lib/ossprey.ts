@@ -1,6 +1,6 @@
 /**
  * Ossprey supply-chain malware API client.
- * Auth: x-api-key (OSSPREY_API_KEY). Secrets live in ~/.sentineldev/.env.
+ * Auth: x-api-key (OSSPREY_API_KEY). Secrets live in ~/.manertdev/.env.
  * Docs: https://docs.ossprey.com/docs/api-quickstart
  */
 
@@ -83,7 +83,7 @@ export function getOsspreyConfigStatus(): {
 
 function headers(): HeadersInit {
   const key = getOsspreyApiKey();
-  if (!key) throw new Error("OSSPREY_API_KEY not set in ~/.sentineldev/.env");
+  if (!key) throw new Error("OSSPREY_API_KEY not set in ~/.manertdev/.env");
   return {
     "x-api-key": key,
     "Content-Type": "application/json",
@@ -124,7 +124,7 @@ export async function probeOssprey(): Promise<{
       return {
         ok: true,
         message:
-          "Ossprey API reachable, but OSSPREY_API_KEY is missing in ~/.sentineldev/.env",
+          "Ossprey API reachable, but OSSPREY_API_KEY is missing in ~/.manertdev/.env",
         details: { health: healthBody, keyPresent: false },
       };
     }

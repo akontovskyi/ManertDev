@@ -1,7 +1,7 @@
-import type { SentinelReport } from "./types";
+import type { ManertReport } from "./types";
 
 /** Compact scan payload for LLM context (cite-only; do not invent). */
-export function compactReport(report: SentinelReport) {
+export function compactReport(report: ManertReport) {
   return {
     summary: report.summary,
     scanKind: report.scanKind,

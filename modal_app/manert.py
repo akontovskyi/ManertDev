@@ -1,13 +1,13 @@
 """
-SentinelDev Modal workers — heavy scan + LLM model on Modal cloud.
+ManertDev Modal workers — heavy scan + LLM model on Modal cloud.
 
 Auth: ~/.modal.toml or MODAL_TOKEN_ID / MODAL_TOKEN_SECRET
 
 Usage:
-  python -m modal run modal_app/sentinel.py --ping-only
-  python -m modal run modal_app/sentinel.py --payload-file job.json
-  python -m modal run modal_app/sentinel.py --ask "explain XSS"
-  python -m modal deploy modal_app/sentinel.py
+  python -m modal run modal_app/manert.py --ping-only
+  python -m modal run modal_app/manert.py --payload-file job.json
+  python -m modal run modal_app/manert.py --ask "explain XSS"
+  python -m modal deploy modal_app/manert.py
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any
 
 import modal
 
-app = modal.App("sentineldev")
+app = modal.App("manertdev")
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -67,9 +67,9 @@ DANGEROUS_PATH = re.compile(
 
 def _emit(obj: Any) -> None:
     """Print a parseable JSON blob for the Node CLI (markers survive Modal logs)."""
-    print("SENTINEL_JSON_START", flush=True)
+    print("MANERT_JSON_START", flush=True)
     print(json.dumps(obj, ensure_ascii=True), flush=True)
-    print("SENTINEL_JSON_END", flush=True)
+    print("MANERT_JSON_END", flush=True)
 
 
 def _now() -> str:
@@ -195,7 +195,7 @@ def _openrouter_chat(
     if not key:
         raise RuntimeError(
             "No OpenRouter key. Pass api_key in payload or set OPENROUTER_API_KEY "
-            "(Modal secret or ~/.sentineldev/.env)."
+            "(Modal secret or ~/.manertdev/.env)."
         )
 
     model = model or os.environ.get("OPENROUTER_MODEL") or "openrouter/free"
@@ -206,8 +206,8 @@ def _openrouter_chat(
             f"{base.rstrip('/')}/chat/completions",
             headers={
                 "Authorization": f"Bearer {key}",
-                "HTTP-Referer": "https://github.com/alvi83252-dot/SentinelDev",
-                "X-Title": "SentinelDev-Modal",
+                "HTTP-Referer": "https://github.com/alvi83252-dot/ManertDev",
+                "X-Title": "ManertDev-Modal",
                 "Content-Type": "application/json",
             },
             json={
@@ -230,9 +230,9 @@ def _openrouter_chat(
 def ping() -> dict[str, Any]:
     return {
         "ok": True,
-        "app": "sentineldev",
+        "app": "manertdev",
         "time": _now(),
-        "message": "SentinelDev Modal worker is alive",
+        "message": "ManertDev Modal worker is alive",
     }
 
 
@@ -268,7 +268,7 @@ def heavy_scan(payload: dict[str, Any]) -> dict[str, Any]:
                     {
                         "role": "system",
                         "content": (
-                            "You are SentinelDev on Modal. Summarize security findings "
+                            "You are ManertDev on Modal. Summarize security findings "
                             "precisely. Propose fixes only. Plain text."
                         ),
                     },
@@ -307,7 +307,7 @@ def ask_model(payload: dict[str, Any]) -> dict[str, Any]:
         messages = [
             {
                 "role": "system",
-                "content": "You are SentinelDev's Modal-hosted security assistant.",
+                "content": "You are ManertDev's Modal-hosted security assistant.",
             },
             {"role": "user", "content": prompt},
         ]

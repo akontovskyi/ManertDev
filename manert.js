@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * SentinelDev global CLI entry point.
+ * ManertDev global CLI entry point.
  * Always relaunches Node with --use-system-ca (required on many Windows setups
  * for NVIDIA / Supabase TLS — otherwise OpenAI SDK throws "Connection error").
  *
  * Install:  npm install -g .
- * Run:      sentinel
+ * Run:      manert
  */
 
 const { spawnSync } = require("node:child_process");
@@ -15,7 +15,7 @@ const path = require("node:path");
 const cli = path.join(__dirname, "src", "cli", "index.ts");
 const localTsx = path.join(__dirname, "node_modules", "tsx", "dist", "cli.mjs");
 // Pin aliases (@/*) to this package — without this, tsx reads cwd's tsconfig
-// and breaks when `sentinel` is run from another project.
+// and breaks when `manert` is run from another project.
 const tsconfig = path.join(__dirname, "tsconfig.json");
 
 function withSystemCa(env) {

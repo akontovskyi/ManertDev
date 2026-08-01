@@ -12,7 +12,7 @@ import { buildFixPrompt } from "@/lib/fix-prompt";
 
 type ChatMessage = {
   id: string;
-  role: "user" | "sentinel";
+  role: "user" | "manert";
   content: string;
 };
 
@@ -53,9 +53,9 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
-      role: "sentinel",
+      role: "manert",
       content:
-        "SentinelDev console ready. Ask anything — security keywords trigger a local scan + live model; general chat goes straight to the model. I only propose fixes — I never auto-modify code.",
+        "ManertDev console ready. Ask anything — security keywords trigger a local scan + live model; general chat goes straight to the model. I only propose fixes — I never auto-modify code.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -73,7 +73,7 @@ export default function DashboardPage() {
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  // `sentinel dashboard` opens /dashboard?root=<absolute cwd>
+  // `manert dashboard` opens /dashboard?root=<absolute cwd>
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -141,7 +141,7 @@ export default function DashboardPage() {
           ...m,
           {
             id: crypto.randomUUID(),
-            role: "sentinel",
+            role: "manert",
             content: data.reply || data.markdown || data.error || "No response.",
           },
         ]);
@@ -158,7 +158,7 @@ export default function DashboardPage() {
           ...m,
           {
             id: crypto.randomUUID(),
-            role: "sentinel",
+            role: "manert",
             content: `Chat failed: ${err instanceof Error ? err.message : "unknown error"}`,
           },
         ]);
@@ -195,7 +195,7 @@ export default function DashboardPage() {
         ...m,
         {
           id: crypto.randomUUID(),
-          role: "sentinel",
+          role: "manert",
           content: data.reply || data.markdown || data.error || "PDF analysis failed.",
         },
       ]);
@@ -221,7 +221,7 @@ export default function DashboardPage() {
         ...m,
         {
           id: crypto.randomUUID(),
-          role: "sentinel",
+          role: "manert",
           content: "Only .pdf files are accepted for IAM / policy upload.",
         },
       ]);
@@ -274,7 +274,7 @@ export default function DashboardPage() {
           ...m,
           {
             id: crypto.randomUUID(),
-            role: "sentinel",
+            role: "manert",
             content: data.reply || data.markdown || data.error || "PDF analysis failed.",
           },
         ]);
@@ -291,7 +291,7 @@ export default function DashboardPage() {
           ...m,
           {
             id: crypto.randomUUID(),
-            role: "sentinel",
+            role: "manert",
             content: `Could not load PDF from link: ${
               err instanceof Error ? err.message : "unknown error"
             }. Try uploading the file instead.`,
@@ -304,7 +304,7 @@ export default function DashboardPage() {
   return (
     <div className="sd-shell" style={styles.shell}>
       <aside style={styles.side}>
-        <p style={styles.sideBrand}>SentinelDev</p>
+        <p style={styles.sideBrand}>ManertDev</p>
         <p style={styles.sideMeta}>Dashboard mode · propose-only</p>
 
         <label style={styles.label}>
@@ -313,7 +313,7 @@ export default function DashboardPage() {
             style={styles.input}
             value={root}
             onChange={(e) => setRoot(e.target.value)}
-            placeholder="Absolute path (from sentinel dashboard)"
+            placeholder="Absolute path (from manert dashboard)"
           />
         </label>
 
@@ -499,9 +499,9 @@ export default function DashboardPage() {
                 },
                 {
                   id: crypto.randomUUID(),
-                  role: "sentinel",
+                  role: "manert",
                   content:
-                    "No dedicated Query Limiting function exists in SentinelDev yet. Endpoint scans may still suggest rate-limiting public GETs in remediations.",
+                    "No dedicated Query Limiting function exists in ManertDev yet. Endpoint scans may still suggest rate-limiting public GETs in remediations.",
                 },
               ]);
             }}
@@ -537,7 +537,7 @@ export default function DashboardPage() {
               }}
             >
               <header style={styles.bubbleHead}>
-                {m.role === "user" ? "You" : "SentinelDev"}
+                {m.role === "user" ? "You" : "ManertDev"}
               </header>
               <pre style={styles.pre}>{m.content}</pre>
             </article>

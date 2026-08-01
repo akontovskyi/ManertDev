@@ -251,7 +251,7 @@ function findingFromVuln(
     remediation: [
       `Remove or replace ${purl} immediately.`,
       "Pin a known-good version, rotate any secrets that package could have accessed,",
-      "and re-run `sentinel ossprey` / `ossprey scan .` after cleanup.",
+      "and re-run `manert ossprey` / `ossprey scan .` after cleanup.",
     ].join(" "),
     problemType: "supply_chain_malware",
   };
@@ -268,13 +268,13 @@ export async function scanOssprey(root: string): Promise<Finding[]> {
         category: "ossprey",
         title: "Ossprey API key not configured",
         description:
-          "Set OSSPREY_API_KEY in ~/.sentineldev/.env to enable supply-chain malware scans.",
+          "Set OSSPREY_API_KEY in ~/.manertdev/.env to enable supply-chain malware scans.",
         evidence: {
           file: sourceFile,
           snippet: `${componentCount} local component(s) catalogued; API skipped`,
         },
         remediation:
-          "Add OSSPREY_API_KEY from https://dashboard.ossprey.com then re-run: sentinel ossprey",
+          "Add OSSPREY_API_KEY from https://dashboard.ossprey.com then re-run: manert ossprey",
         problemType: "misconfiguration",
       },
     ];
@@ -318,7 +318,7 @@ export async function scanOssprey(root: string): Promise<Finding[]> {
             snippet: `sbom_id=${submit.sbom_id || "(empty)"} · components=${componentCount}`,
           },
           remediation:
-            "Keep lockfiles committed and re-scan when adding dependencies (`sentinel ossprey`).",
+            "Keep lockfiles committed and re-scan when adding dependencies (`manert ossprey`).",
           problemType: "general",
         },
       ];
@@ -340,7 +340,7 @@ export async function scanOssprey(root: string): Promise<Finding[]> {
           snippet: `${componentCount} component(s) prepared for submit`,
         },
         remediation:
-          "Check network/TLS, quota, and OSSPREY_API_KEY. Retry: sentinel ossprey",
+          "Check network/TLS, quota, and OSSPREY_API_KEY. Retry: manert ossprey",
         problemType: "misconfiguration",
       },
     ];

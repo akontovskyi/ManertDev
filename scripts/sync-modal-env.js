@@ -1,5 +1,5 @@
 /**
- * Sync Modal tokens from ~/.modal.toml into ~/.sentineldev/.env
+ * Sync Modal tokens from ~/.modal.toml into ~/.manertdev/.env
  * Prints only non-secret status fields.
  */
 const fs = require("fs");
@@ -42,7 +42,7 @@ const name =
   profiles[0];
 const b = blocks[name] || {};
 
-const dest = path.join(os.homedir(), ".sentineldev", ".env");
+const dest = path.join(os.homedir(), ".manertdev", ".env");
 fs.mkdirSync(path.dirname(dest), { recursive: true });
 let t = fs.existsSync(dest) ? fs.readFileSync(dest, "utf8") : "";
 

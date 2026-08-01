@@ -4,16 +4,16 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { loadEnvFiles } from "@/lib/env";
 import { analyzeLocally } from "@/lib/local-analyst";
 import {
-  SENTINEL_SYSTEM_PROMPT,
+  MANERT_SYSTEM_PROMPT,
   getNvidiaConfig,
   isSecurityQuestion,
-  streamSentinelChat,
+  streamManertChat,
 } from "@/lib/nvidia";
 import { formatReportMarkdown, reportToFixLogs } from "@/lib/report";
 import { routeQuery } from "@/lib/router";
 import { compactReport } from "@/lib/scan-evidence";
 import { persistFixLogs } from "@/lib/supabase";
-import type { Finding, SentinelReport } from "@/lib/types";
+import type { Finding, ManertReport } from "@/lib/types";
 import { runScan } from "@/scanners";
 
 export const runtime = "nodejs";
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const query = String(body.query || "").trim();
-    const rootInput = String(body.root || process.env.SENTINEL_SCAN_ROOT || ".");
+    const rootInput = String(body.root || process.env.MANERT_SCAN_ROOT || ".");
     const root = resolveScanRoot(rootInput);
     const prior = sanitizeHistory(body.history);
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const preferFallback = !security;
     const routed = routeQuery(query);
 
-    let report: SentinelReport | null = null;
+    let report: ManertReport | null = null;
     let findings: Finding[] = [];
     let reportMarkdown = "";
     let persist: Awaited<ReturnType<typeof persistFixLogs>> | null = null;
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
           ? analyzeLocally(report).offlineNarrative
           : [
               "Model offline — no LLM keys configured.",
-              "Add OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY to ~/.sentineldev/.env, then restart the dashboard.",
+              "Add OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY to ~/.manertdev/.env, then restart the dashboard.",
               security
                 ? "Local scanners still work for keyword security asks once keys are set."
                 : "General chat needs a model key.",
@@ -138,12 +138,12 @@ export async function POST(req: NextRequest) {
       .join("\n");
 
     const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: SENTINEL_SYSTEM_PROMPT },
+      { role: "system", content: MANERT_SYSTEM_PROMPT },
       ...prior,
       { role: "user", content: userContent },
     ];
 
-    const reply = await streamSentinelChat({
+    const reply = await streamManertChat({
       messages,
       temperature: 1.05,
       maxTokens: 4096,

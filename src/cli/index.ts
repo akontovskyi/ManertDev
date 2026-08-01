@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * SentinelDev — terminal-native Secure AI helper
+ * ManertDev — terminal-native Secure AI helper
  *
- *   sentinel                  → interactive AI chat (Claude-style)
- *   sentinel scan .
- *   sentinel scan --endpoints
- *   sentinel ask "find exposed endpoints"
- *   sentinel chat
- *   sentinel explain <file>
- *   sentinel fix <issue-id>
- *   sentinel diff <file>
- *   sentinel dashboard
- *   sentinel ossprey [path]
- *   sentinel supabase
- *   sentinel install
+ *   manert                  → interactive AI chat (Claude-style)
+ *   manert scan .
+ *   manert scan --endpoints
+ *   manert ask "find exposed endpoints"
+ *   manert chat
+ *   manert explain <file>
+ *   manert fix <issue-id>
+ *   manert diff <file>
+ *   manert dashboard
+ *   manert ossprey [path]
+ *   manert supabase
+ *   manert install
  */
 
 import fs from "node:fs";
@@ -47,7 +47,7 @@ import {
   runModalHeavyScan,
   runModalAsk,
 } from "../lib/modal";
-import type { Finding, ScanKind, SentinelReport } from "../lib/types";
+import type { Finding, ScanKind, ManertReport } from "../lib/types";
 import { editorLabel } from "../lib/editor";
 import { loadEnvFiles, ensureUserEnv } from "../lib/env";
 import { startRepl } from "./repl";
@@ -76,7 +76,7 @@ interface ParsedArgs {
 function parseArgs(argv: string[]): ParsedArgs {
   const args = argv.slice(2);
   let cmd = args[0] || "chat";
-  let root = process.env.SENTINEL_SCAN_ROOT || process.cwd();
+  let root = process.env.MANERT_SCAN_ROOT || process.cwd();
   let kind: ScanKind = "full";
   let query = "";
   let target = "";
@@ -165,7 +165,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return { cmd, root, kind, query, target, plain, wantPatch, positional };
 }
 
-async function printReport(report: SentinelReport) {
+async function printReport(report: ManertReport) {
   console.log(formatCliReport(report));
   try {
     const rows = reportToFixLogs(report);
@@ -202,11 +202,11 @@ async function main() {
       cfg
         ? c.dim(`  Live model ready: ${cfg.model} · auto-fallback on`)
         : c.yellow(
-            "  Live model: set OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
+            "  Live model: set OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY in ~/.manertdev/.env",
           ),
     );
     console.log(
-      c.violet('  Tip: run "sentinel" with no args to open interactive chat'),
+      c.violet('  Tip: run "manert" with no args to open interactive chat'),
     );
     console.log("");
     return;
@@ -218,7 +218,7 @@ async function main() {
   }
 
   if (cmd === "dashboard" || cmd === "ui") {
-    // Scan root = where sentinel was executed (cwd), unless --root overrides
+    // Scan root = where manert was executed (cwd), unless --root overrides
     let dashRoot = root;
     const pos = parsed.positional[0];
     if (pos) {
@@ -232,12 +232,12 @@ async function main() {
   }
 
   if (cmd === "project") {
-    // sentinel project
-    // sentinel project set --name X --details "..."
+    // manert project
+    // manert project set --name X --details "..."
     const sub = target || parsed.positional[0] || "show";
     if (sub === "set" || parsed.positional.includes("set")) {
-      let name = process.env.SENTINEL_PROJECT_NAME || "";
-      let details = process.env.SENTINEL_PROJECT_DETAILS || "";
+      let name = process.env.MANERT_PROJECT_NAME || "";
+      let details = process.env.MANERT_PROJECT_DETAILS || "";
       const args = process.argv.slice(2);
       for (let i = 0; i < args.length; i++) {
         if (args[i] === "--name" && args[i + 1]) name = args[++i];
@@ -249,13 +249,13 @@ async function main() {
         }
       }
       if (!name) {
-        console.error(c.red('Usage: sentinel project set --name "MyApp" --details "..."'));
+        console.error(c.red('Usage: manert project set --name "MyApp" --details "..."'));
         process.exitCode = 1;
         return;
       }
       const dest = saveProjectContext(root, {
         name,
-        details: details || `${name} (managed by SentinelDev)`,
+        details: details || `${name} (managed by ManertDev)`,
       });
       console.log(c.green(`Project saved → ${dest}`));
       console.log(c.dim(`name:    ${name}`));
@@ -269,7 +269,7 @@ async function main() {
     console.log(c.dim(`  details: ${ctx.details}`));
     console.log(
       c.dim(
-        '  set with: sentinel project set --name "MyApp" --details "what this app does"',
+        '  set with: manert project set --name "MyApp" --details "what this app does"',
       ),
     );
     console.log("");
@@ -283,7 +283,7 @@ async function main() {
     if (!logs.length) {
       console.log(
         c.dim(
-          "  No rows yet. Run a scan (sentinel scan .) after creating the table, or insert manually.",
+          "  No rows yet. Run a scan (manert scan .) after creating the table, or insert manually.",
         ),
       );
       console.log("");
@@ -313,7 +313,7 @@ async function main() {
   if (cmd === "mark-fixed") {
     const id =
       target ||
-      positionalOrFail(parsed, "Usage: sentinel mark-fixed <fix-log-id>");
+      positionalOrFail(parsed, "Usage: manert mark-fixed <fix-log-id>");
     const res = await markFixLogFixed(id);
     if (!res.ok) {
       console.error(c.red(res.error || "failed"));
@@ -404,7 +404,7 @@ async function main() {
   }
 
   if (cmd === "modal") {
-    // sentinel modal [--ask "..." | "deep scan"] [--narrate]
+    // manert modal [--ask "..." | "deep scan"] [--narrate]
     const args = process.argv.slice(3);
     let askPrompt = "";
     let narrate = false;
@@ -473,7 +473,7 @@ async function main() {
         fileCount?: number;
       };
 
-      const report: SentinelReport = {
+      const report: ManertReport = {
         summary: out.summary || "Modal heavy scan complete.",
         findings: out.findings || [],
         evidence: (out.findings || []).map((f) => f.evidence),
@@ -511,7 +511,7 @@ async function main() {
 
   if (cmd === "explain") {
     const file =
-      target || positionalOrFail(parsed, "Usage: sentinel explain <file>");
+      target || positionalOrFail(parsed, "Usage: manert explain <file>");
     const abs = path.resolve(root, file);
     if (!fs.existsSync(abs)) {
       console.error(c.red(`File not found: ${abs}`));
@@ -530,7 +530,7 @@ async function main() {
         f.evidence.file.endsWith(rel) ||
         path.resolve(report.targetPath, f.evidence.file) === abs,
     );
-    const narrowed: SentinelReport = {
+    const narrowed: ManertReport = {
       ...report,
       summary: `Explain ${rel}: ${filtered.length} finding(s). Editor: ${editorLabel()}.`,
       findings: filtered,
@@ -556,7 +556,7 @@ async function main() {
 
   if (cmd === "fix") {
     const issueId =
-      target || positionalOrFail(parsed, "Usage: sentinel fix <issue-id>");
+      target || positionalOrFail(parsed, "Usage: manert fix <issue-id>");
     const report = await runScan({
       root,
       kind: "full",
@@ -568,7 +568,7 @@ async function main() {
     if (!hit) {
       console.error(c.red(`No finding matched issue-id: ${issueId}`));
       console.error(
-        c.dim("Run: sentinel scan .   then copy an Issue ID from Findings."),
+        c.dim("Run: manert scan .   then copy an Issue ID from Findings."),
       );
       process.exitCode = 1;
       return;
@@ -606,7 +606,7 @@ async function main() {
 
   if (cmd === "diff") {
     const file =
-      target || positionalOrFail(parsed, "Usage: sentinel diff <file>");
+      target || positionalOrFail(parsed, "Usage: manert diff <file>");
     const abs = path.resolve(root, file);
     const report = await runScan({
       root: fs.existsSync(abs) ? path.dirname(abs) : root,
@@ -681,7 +681,7 @@ function bannerStatus(): string {
   return (
     c.smartBlue("╭──────────────────────────────────────────╮") +
     "\n" +
-    c.smartBlue("│ * SentinelDev status                     │") +
+    c.smartBlue("│ * ManertDev status                     │") +
     "\n" +
     c.smartBlue("╰──────────────────────────────────────────╯") +
     "\n"
@@ -689,6 +689,6 @@ function bannerStatus(): string {
 }
 
 main().catch((err) => {
-  console.error(c.red("SentinelDev error:"), err);
+  console.error(c.red("ManertDev error:"), err);
   process.exitCode = 1;
 });

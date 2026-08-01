@@ -1,5 +1,5 @@
 /**
- * Fixture app with intentional weaknesses for local SentinelDev demos.
+ * Fixture app with intentional weaknesses for local ManertDev demos.
  * DO NOT deploy. Propose-only scanners should flag these patterns.
  */
 

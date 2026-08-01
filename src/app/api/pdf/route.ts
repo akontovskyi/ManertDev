@@ -3,9 +3,9 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { loadEnvFiles } from "@/lib/env";
 import { analyzeLocally } from "@/lib/local-analyst";
 import {
-  SENTINEL_SYSTEM_PROMPT,
+  MANERT_SYSTEM_PROMPT,
   getNvidiaConfig,
-  streamSentinelChat,
+  streamManertChat,
 } from "@/lib/nvidia";
 import { formatReportMarkdown, reportToFixLogs } from "@/lib/report";
 import { compactReport } from "@/lib/scan-evidence";
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     const messages: ChatCompletionMessageParam[] = [
-      { role: "system", content: SENTINEL_SYSTEM_PROMPT },
+      { role: "system", content: MANERT_SYSTEM_PROMPT },
       {
         role: "user",
         content: [
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    const reply = await streamSentinelChat({
+    const reply = await streamManertChat({
       messages,
       temperature: 1.05,
       maxTokens: 4096,

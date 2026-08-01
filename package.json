@@ -1,5 +1,5 @@
 {
-  "name": "sentineldev",
+  "name": "manertdev",
   "version": "0.1.0",
   "private": false,
   "description": "Terminal-native Secure AI helper — Denuvo for your app in development. Propose-only.",
@@ -9,17 +9,17 @@
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
     "lint": "next lint",
     "cli": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts",
-    "sentinel": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts",
+    "manert": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts",
     "scan": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts scan",
     "supabase:probe": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json scripts/probe-supabase.ts",
     "typecheck": "tsc --noEmit"
   },
   "bin": {
-    "sentinel": "./sentinel.js",
-    "sentineldev": "./sentinel.js"
+    "manert": "./manert.js",
+    "manertdev": "./manert.js"
   },
   "files": [
-    "sentinel.js",
+    "manert.js",
     "src/**/*",
     "supabase/**/*",
     "fixtures/**/*",
