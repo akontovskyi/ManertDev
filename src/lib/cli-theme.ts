@@ -5,7 +5,7 @@
 
 import path from "node:path";
 import type { Finding, FixLogRow, SentinelReport, Severity } from "./types";
-import { findingToFixLog } from "./report";
+import { reportToFixLogs } from "./report";
 import { detectEditor, editorLabel, editorScheme } from "./editor";
 
 const ESC = "\u001b[";
@@ -380,7 +380,7 @@ export function formatCliReport(report: SentinelReport): string {
     );
   }
 
-  const rows = report.findings.map(findingToFixLog);
+  const rows = reportToFixLogs(report);
   parts.push(sectionHeader("Fix logs (plain)"));
   parts.push(formatFixLogPlain(rows));
   parts.push("");
@@ -443,8 +443,11 @@ export function formatCliHelp(): string {
     c.white("  sentinel scan [path]"),
     c.dim("      Full security sweep of a directory (default: .)"),
     "",
-    c.white("  sentinel scan --endpoints | --env | --db | --keys | --admin"),
+    c.white("  sentinel scan --endpoints | --env | --db | --keys | --admin | --ossprey"),
     c.dim("      Targeted scans (can combine with a path)"),
+    "",
+    c.white("  sentinel ossprey [path]"),
+    c.dim("      Ossprey supply-chain malware scan (npm lockfile → API)"),
     "",
     c.white("  sentinel ask \"find exposed endpoints\""),
     c.dim("      One-shot natural-language scan (non-interactive)"),
@@ -461,8 +464,20 @@ export function formatCliHelp(): string {
     c.white("  sentinel diff <file>"),
     c.dim("      Show proposed secure rewrite diff for a file"),
     "",
+    c.white("  sentinel project"),
+    c.dim("      Show project name/details used in Supabase fix logs"),
+    "",
+    c.white('  sentinel project set --name "MyApp" --details "..."'),
+    c.dim("      Save project identity to .sentineldev/project.json"),
+    "",
+    c.white("  sentinel logs"),
+    c.dim("      List recent fix_logs from Supabase (date, type, fixed, project)"),
+    "",
+    c.white("  sentinel mark-fixed <id>"),
+    c.dim("      Mark a fix_log row as fixed=true"),
+    "",
     c.white("  sentinel supabase"),
-    c.dim("      Probe Supabase connection + fix_logs table"),
+    c.dim("      Probe Supabase + Ossprey connection"),
     "",
     c.white("  sentinel install"),
     c.dim("      Print manual steps to install sentinel globally"),
@@ -476,6 +491,7 @@ export function formatCliHelp(): string {
     c.dim("  env, environment, keys, secrets   → Secrets & Env Scan"),
     c.dim("  admin, debug, panel               → System Entrance Scan"),
     c.dim("  scramble, rotate                  → Key Scrambling Suggestions"),
+    c.dim("  ossprey, malware, malware, sbom     → Ossprey Supply-Chain Scan"),
     c.dim("  fix, patch                        → Generate Patch (only when requested)"),
     "",
     c.violet(

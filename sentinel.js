@@ -1,33 +1,48 @@
 #!/usr/bin/env node
 /**
  * SentinelDev global CLI entry point.
+ * Always relaunches Node with --use-system-ca (required on many Windows setups
+ * for NVIDIA / Supabase TLS — otherwise OpenAI SDK throws "Connection error").
+ *
  * Install:  npm install -g .
- * Verify:   sentinel --help
- *           sentinel scan .
+ * Run:      sentinel
  */
 
 const { spawnSync } = require("node:child_process");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const cli = path.join(__dirname, "src", "cli", "index.ts");
-const tsxCli = path.join(__dirname, "node_modules", "tsx", "dist", "cli.mjs");
+const localTsx = path.join(__dirname, "node_modules", "tsx", "dist", "cli.mjs");
+
+function withSystemCa(env) {
+  const next = { ...env };
+  const flag = "--use-system-ca";
+  const existing = next.NODE_OPTIONS || "";
+  if (!existing.includes(flag)) {
+    next.NODE_OPTIONS = existing ? `${existing} ${flag}` : flag;
+  }
+  return next;
+}
 
 const args = process.argv.slice(2);
+const env = withSystemCa(process.env);
 const nodeArgs = ["--use-system-ca"];
 
+// Prefer local tsx (now a runtime dependency)
 let result;
-if (require("node:fs").existsSync(tsxCli)) {
+if (fs.existsSync(localTsx)) {
   result = spawnSync(
     process.execPath,
-    [...nodeArgs, tsxCli, cli, ...args],
-    { stdio: "inherit", env: process.env },
+    [...nodeArgs, localTsx, cli, ...args],
+    { stdio: "inherit", env },
   );
 } else {
-  // Global install may hoist tsx — try npx
+  // Fallback: npx tsx, still with system CA via NODE_OPTIONS
   result = spawnSync(
     process.platform === "win32" ? "npx.cmd" : "npx",
     ["--yes", "tsx", cli, ...args],
-    { stdio: "inherit", env: process.env, shell: true },
+    { stdio: "inherit", env, shell: true },
   );
 }
 

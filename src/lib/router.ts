@@ -5,6 +5,11 @@ import type { RouteMatch, ScanKind } from "./types";
  */
 export const ROUTES: RouteMatch[] = [
   {
+    keyword: /\b(ossprey|osprey|supply[\s-]?chain|malicious\s+packag|malware\s+depend|dependency\s+malware|sbom)\b/i,
+    kind: "ossprey",
+    label: "Ossprey Supply-Chain Malware Scan",
+  },
+  {
     keyword: /\b(scramble|rotate|secure\s+keys?)\b/i,
     kind: "scramble",
     label: "Generate Key Scrambling Suggestions",

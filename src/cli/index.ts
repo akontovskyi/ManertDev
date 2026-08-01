@@ -10,6 +10,7 @@
  *   sentinel explain <file>
  *   sentinel fix <issue-id>
  *   sentinel diff <file>
+ *   sentinel ossprey [path]
  *   sentinel supabase
  *   sentinel install
  */
@@ -35,11 +36,23 @@ import {
   probeSupabase,
   getSupabaseConfigStatus,
 } from "../lib/supabase";
+import {
+  probeOssprey,
+  getOsspreyConfigStatus,
+} from "../lib/ossprey";
 import type { Finding, ScanKind, SentinelReport } from "../lib/types";
 import { editorLabel } from "../lib/editor";
 import { loadEnvFiles, ensureUserEnv } from "../lib/env";
 import { startRepl } from "./repl";
 import { getNvidiaConfig } from "../lib/nvidia";
+import {
+  loadProjectContext,
+  saveProjectContext,
+} from "../lib/report";
+import {
+  listFixLogs,
+  markFixLogFixed,
+} from "../lib/supabase";
 
 interface ParsedArgs {
   cmd: string;
@@ -78,6 +91,11 @@ function parseArgs(argv: string[]): ParsedArgs {
     "supabase",
     "install",
     "status",
+    "project",
+    "logs",
+    "mark-fixed",
+    "ossprey",
+    "osprey",
   ]);
 
   let startIdx = 1;
@@ -103,6 +121,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       kind = "entrances";
     } else if (a === "--scramble" || a === "--rotate") {
       kind = "scramble";
+    } else if (a === "--ossprey" || a === "--osprey" || a === "--supply-chain") {
+      kind = "ossprey";
     } else if (a === "--full") {
       kind = "full";
     } else if (a === "--plain" || a === "--no-color") {
@@ -137,27 +157,27 @@ function parseArgs(argv: string[]): ParsedArgs {
 
 async function printReport(report: SentinelReport) {
   console.log(formatCliReport(report));
-  const rows = reportToFixLogs(report);
-  const persist = await persistFixLogs(rows);
-  if (persist.ok) {
-    console.log(c.green(`  Supabase: stored ${persist.count} fix_log row(s).`));
-  } else if (persist.error) {
-    console.log(c.dim(`  Supabase: ${persist.error}`));
+  try {
+    const rows = reportToFixLogs(report);
+    const persist = await persistFixLogs(rows);
+    if (persist.ok) {
+      console.log(c.green(`  Supabase: stored ${persist.count} fix_log row(s).`));
+    } else if (persist.error) {
+      console.log(c.dim(`  Supabase (non-fatal): ${persist.error}`));
+    }
+  } catch (err) {
+    console.log(
+      c.dim(
+        `  Supabase persist skipped: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
   }
 }
 
 async function main() {
   loadEnvFiles();
-
-  try {
-    const localEnv = path.resolve(__dirname, "../../.env.local");
-    if (fs.existsSync(localEnv)) {
-      ensureUserEnv(fs.readFileSync(localEnv, "utf8"));
-      loadEnvFiles();
-    }
-  } catch {
-    // ignore
-  }
+  ensureUserEnv();
+  loadEnvFiles();
 
   const parsed = parseArgs(process.argv);
   if (parsed.plain) process.env.NO_COLOR = "1";
@@ -166,11 +186,14 @@ async function main() {
 
   if (cmd === "help" || cmd === "--help" || cmd === "-h") {
     console.log(formatCliHelp());
-    const cfg = getNvidiaConfig();
+    const cfg =
+      getNvidiaConfig({ preferFallback: true }) || getNvidiaConfig();
     console.log(
       cfg
-        ? c.dim(`  AI model ready: ${cfg.model}`)
-        : c.yellow("  AI model: set NVIDIA_API_KEY to enable chat"),
+        ? c.dim(`  AI ready: ${cfg.model} (${cfg.label.split(":")[0]}) · auto-fallback on`)
+        : c.yellow(
+            "  AI: set OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
+          ),
     );
     console.log(
       c.violet('  Tip: run "sentinel" with no args to open interactive chat'),
@@ -181,6 +204,99 @@ async function main() {
 
   if (cmd === "chat" || cmd === "repl") {
     await startRepl({ root });
+    return;
+  }
+
+  if (cmd === "project") {
+    // sentinel project
+    // sentinel project set --name X --details "..."
+    const sub = target || parsed.positional[0] || "show";
+    if (sub === "set" || parsed.positional.includes("set")) {
+      let name = process.env.SENTINEL_PROJECT_NAME || "";
+      let details = process.env.SENTINEL_PROJECT_DETAILS || "";
+      const args = process.argv.slice(2);
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--name" && args[i + 1]) name = args[++i];
+        if (
+          (args[i] === "--details" || args[i] === "--detail") &&
+          args[i + 1]
+        ) {
+          details = args[++i];
+        }
+      }
+      if (!name) {
+        console.error(c.red('Usage: sentinel project set --name "MyApp" --details "..."'));
+        process.exitCode = 1;
+        return;
+      }
+      const dest = saveProjectContext(root, {
+        name,
+        details: details || `${name} (managed by SentinelDev)`,
+      });
+      console.log(c.green(`Project saved → ${dest}`));
+      console.log(c.dim(`name:    ${name}`));
+      console.log(c.dim(`details: ${details || "(default)"}`));
+      return;
+    }
+    const ctx = loadProjectContext(root);
+    console.log("");
+    console.log(c.smartBlue("Project context"));
+    console.log(c.white(`  name:    ${ctx.name}`));
+    console.log(c.dim(`  details: ${ctx.details}`));
+    console.log(
+      c.dim(
+        '  set with: sentinel project set --name "MyApp" --details "what this app does"',
+      ),
+    );
+    console.log("");
+    return;
+  }
+
+  if (cmd === "logs") {
+    const logs = await listFixLogs(30);
+    console.log("");
+    console.log(c.smartBlue("Fix logs (Supabase)"));
+    if (!logs.length) {
+      console.log(
+        c.dim(
+          "  No rows yet. Run a scan (sentinel scan .) after creating the table, or insert manually.",
+        ),
+      );
+      console.log("");
+      return;
+    }
+    for (const row of logs) {
+      console.log(
+        c.white(
+          `[${row.severity}] ${row.timestamp}  fixed=${row.fixed ? "yes" : "no"}`,
+        ),
+      );
+      console.log(c.dim(`  type:    ${row.problem_type}`));
+      console.log(c.dim(`  project: ${row.project_name || "(none)"}`));
+      console.log(c.dim(`  issue:   ${row.description.slice(0, 120)}`));
+      console.log(
+        c.dim(
+          `  file:    ${row.file_path || "?"}${row.line_number ? `:${row.line_number}` : ""}`,
+        ),
+      );
+      console.log(c.green(`  fix:     ${row.proposed_remediation.slice(0, 120)}`));
+      if (row.id) console.log(c.muted(`  id:      ${row.id}`));
+      console.log("");
+    }
+    return;
+  }
+
+  if (cmd === "mark-fixed") {
+    const id =
+      target ||
+      positionalOrFail(parsed, "Usage: sentinel mark-fixed <fix-log-id>");
+    const res = await markFixLogFixed(id);
+    if (!res.ok) {
+      console.error(c.red(res.error || "failed"));
+      process.exitCode = 1;
+      return;
+    }
+    console.log(c.green(`Marked fixed: ${res.count} row(s) for ${id}`));
     return;
   }
 
@@ -199,8 +315,19 @@ async function main() {
     console.log(c.dim(`  project:    ${status.projectRef || "(unknown)"}`));
     console.log(c.dim(`  key type:   ${status.keyType || "(none)"}`));
     console.log(c.dim(`  editor:     ${editorLabel()}`));
-    const nv = getNvidiaConfig();
-    console.log(c.dim(`  nvidia:     ${nv ? nv.model : "(no API key)"}`));
+    const nv =
+      getNvidiaConfig({ preferFallback: true }) || getNvidiaConfig();
+    console.log(
+      c.dim(
+        `  llm:        ${nv ? `${nv.model} · fallbacks on` : "(no API key)"}`,
+      ),
+    );
+    const osprey = getOsspreyConfigStatus();
+    console.log(
+      c.dim(
+        `  ossprey:    ${osprey.configured ? `key set · ${osprey.baseUrl}` : "(no OSSPREY_API_KEY)"}`,
+      ),
+    );
     const probe = await probeSupabase();
     console.log("");
     if (probe.ok) {
@@ -211,7 +338,32 @@ async function main() {
         console.log(c.dim(JSON.stringify(probe.details, null, 2)));
       }
     }
+    const op = await probeOssprey();
+    if (op.ok) {
+      console.log(c.green(`OK  ${op.message}`));
+    } else {
+      console.log(c.yellow(`WARN  Ossprey: ${op.message}`));
+    }
     console.log("");
+    return;
+  }
+
+  if (cmd === "ossprey" || cmd === "osprey") {
+    let scanRoot = root;
+    const pos = parsed.positional[0];
+    if (pos) {
+      const maybePath = path.resolve(pos);
+      if (pos === "." || fs.existsSync(maybePath)) {
+        scanRoot = path.resolve(pos);
+      }
+    }
+    console.log(c.dim(`Ossprey supply-chain scan → ${scanRoot}`));
+    const report = await runScan({
+      root: scanRoot,
+      kind: "ossprey",
+      query: query || "ossprey",
+    });
+    await printReport(report);
     return;
   }
 

@@ -1,10 +1,7 @@
 /**
- * Interactive Claude-style REPL for SentinelDev.
- *
- * Architecture (NOT an API wrapper):
- *   1. Local scanners in src/scanners/* find issues (filesystem, regex, heuristics)
- *   2. Local analyst ranks / narrates offline (src/lib/local-analyst.ts)
- *   3. NVIDIA Nemotron is OPTIONAL — narration only, grounded in local evidence
+ * Interactive real-time AI REPL for SentinelDev.
+ * Every message streams through NVIDIA Nemotron (OpenAI-compatible).
+ * Local scanners run only for security questions — they feed evidence, AI speaks.
  */
 
 import readline from "node:readline";
@@ -23,6 +20,7 @@ import {
   SENTINEL_SYSTEM_PROMPT,
   getNvidiaConfig,
   streamSentinelChat,
+  isSecurityQuestion,
 } from "../lib/nvidia";
 import { analyzeLocally } from "../lib/local-analyst";
 import { editorLabel } from "../lib/editor";
@@ -33,58 +31,59 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
   let root = path.resolve(
     opts?.root || process.env.SENTINEL_SCAN_ROOT || process.cwd(),
   );
-  const cfg = getNvidiaConfig();
+  // Prefer any available key (fallback counts) so general chat works
+  const cfg = getNvidiaConfig({ preferFallback: true }) || getNvidiaConfig();
   let aiEnabled = Boolean(cfg);
-  let lastReport: SentinelReport | null = null;
+  let showThinking = false;
 
   console.log("");
   console.log(
-    bannerPublic("Welcome to SentinelDev — local security engine + optional AI"),
+    bannerPublic("Welcome to SentinelDev — real-time AI in your terminal"),
   );
   console.log("");
   console.log(asciiLogoPublic());
   console.log("");
   console.log(
-    c.white("This is NOT an API wrapper."),
+    c.white("Ask anything. Live OpenRouter chat with automatic key/model fallbacks."),
   );
   console.log(
     c.dim(
-      "Core: local scanners (endpoints/secrets/entrances/database) + local risk ranking.",
+      "No security keywords → fallback AI key first. Security asks → primary key + local scan.",
     ),
   );
-  console.log(
-    c.dim(
-      "Optional: Nemotron only narrates after local evidence exists. Scans work offline.",
-    ),
-  );
-  console.log(c.dim("Propose-only — never auto-modifies files."));
+  console.log(c.dim("Propose-only on code — I never auto-modify files."));
   console.log("");
   console.log(c.muted(`cwd:     ${root}`));
   console.log(c.muted(`editor:  ${editorLabel()}`));
   console.log(
     c.muted(
       aiEnabled
-        ? `ai:      optional · ${cfg!.model}`
-        : "ai:      off (local engine only — set NVIDIA_API_KEY to enable narration)",
+        ? `ai:      LIVE · ${cfg!.provider} · ${cfg!.model} · multi-fallback`
+        : "ai:      OFF — set OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
     ),
   );
   console.log("");
   console.log(c.white("Commands:"));
-  console.log(c.dim("  /scan [path]     local full sweep + ranked report"));
-  console.log(c.dim("  /endpoints       local endpoint scan"));
-  console.log(c.dim("  /env             local secrets/env scan"));
-  console.log(c.dim("  /db              local database scan"));
-  console.log(c.dim("  /ai on|off       toggle optional AI narration"));
+  console.log(c.dim("  /scan [path]     force local full sweep + AI summary"));
+  console.log(c.dim("  /endpoints|/env|/db|/ossprey   targeted local scan + AI"));
+  console.log(c.dim("  /ai on|off       toggle live AI (default on)"));
+  console.log(c.dim("  /think on|off    show model thinking stream"));
   console.log(c.dim("  /cd <path>       change scan root"));
-  console.log(c.dim("  /help            show help"));
-  console.log(c.dim("  /exit            quit"));
+  console.log(c.dim("  /help  /exit"));
   console.log("");
   console.log(
-    c.violet(
-      'Ask anything — e.g. "find exposed endpoints" (local first, AI optional)',
-    ),
+    c.violet('Try: "hi" · "tell me a joke" · "find exposed endpoints"'),
   );
   console.log("");
+
+  if (!aiEnabled) {
+    console.log(
+      c.yellow(
+        "No OpenRouter keys — chat limited. Add OPENROUTER_API_KEY and OPENROUTER_FALLBACK_API_KEY to ~/.sentineldev/.env then restart.",
+      ),
+    );
+    console.log("");
+  }
 
   const history: ChatCompletionMessageParam[] = [
     { role: "system", content: SENTINEL_SYSTEM_PROMPT },
@@ -110,7 +109,7 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
       line === "exit" ||
       line === "quit"
     ) {
-      console.log(c.dim("Bye. Stay secure."));
+      console.log(c.dim("Bye. Stay curious."));
       rl.close();
       return;
     }
@@ -118,7 +117,7 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
     if (line === "/help") {
       console.log(
         c.dim(
-          "Local engine answers first. AI narration is optional. /scan /endpoints /env /db /ai on|off /cd /exit",
+          "Chat freely. Security keywords trigger local scans. /scan /ai /think /cd /exit",
         ),
       );
       continue;
@@ -130,33 +129,43 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
       continue;
     }
 
+    if (line.startsWith("/think")) {
+      const arg = line.slice(6).trim().toLowerCase();
+      if (arg === "on") showThinking = true;
+      else if (arg === "off") showThinking = false;
+      console.log(c.dim(`thinking stream: ${showThinking ? "ON" : "OFF"}`));
+      continue;
+    }
+
     if (line.startsWith("/ai")) {
       const arg = line.slice(3).trim().toLowerCase();
       if (arg === "off") {
         aiEnabled = false;
-        console.log(c.dim("AI narration OFF — local engine only."));
+        console.log(c.dim("Live AI OFF."));
       } else if (arg === "on") {
-        if (!getNvidiaConfig()) {
+        if (!getNvidiaConfig({ preferFallback: true }) && !getNvidiaConfig()) {
           console.log(
-            c.yellow("Cannot enable AI — NVIDIA_API_KEY not configured."),
+            c.yellow(
+              "No OpenRouter keys (OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY).",
+            ),
           );
         } else {
           aiEnabled = true;
-          console.log(c.dim("AI narration ON — still grounded in local evidence only."));
+          console.log(c.dim("Live AI ON."));
         }
       } else {
-        console.log(c.dim(`AI narration is ${aiEnabled ? "ON" : "OFF"}`));
+        console.log(c.dim(`Live AI is ${aiEnabled ? "ON" : "OFF"}`));
       }
       continue;
     }
 
     try {
       if (line.startsWith("/")) {
-        lastReport = await handleSlash(line, root, history, aiEnabled);
+        await handleSlash(line, root, history, aiEnabled, showThinking);
         continue;
       }
 
-      lastReport = await handleChat(line, root, history, aiEnabled);
+      await handleChat(line, root, history, aiEnabled, showThinking);
     } catch (err) {
       console.log(
         c.red(`Error: ${err instanceof Error ? err.message : String(err)}`),
@@ -170,7 +179,8 @@ async function handleSlash(
   root: string,
   history: ChatCompletionMessageParam[],
   aiEnabled: boolean,
-): Promise<SentinelReport | null> {
+  showThinking: boolean,
+): Promise<void> {
   const [cmd, ...rest] = line.slice(1).split(/\s+/);
   const arg = rest.join(" ").trim();
   const scanRoot = arg && !arg.startsWith("-") ? path.resolve(root, arg) : root;
@@ -186,44 +196,63 @@ async function handleSlash(
     database: "database",
     admin: "entrances",
     scramble: "scramble",
+    ossprey: "ossprey",
+    osprey: "ossprey",
+    supply: "ossprey",
   };
 
   const kind = map[cmd || ""];
   if (!kind) {
     console.log(
       c.dim(
-        "Unknown command. Try /scan /endpoints /env /db /ai on|off /cd /help /exit",
+        "Unknown. Try /scan /endpoints /env /db /ossprey /ai /think /cd /help /exit",
       ),
     );
-    return null;
+    return;
   }
 
   console.log(c.dim(`Local scan (${kind}) → ${scanRoot}`));
-  const report = await runScan({
-    root: scanRoot,
-    kind,
-    query: wantsPatch(arg) ? "apply fix" : kind,
-  });
+  let report: SentinelReport;
+  try {
+    report = await runScan({
+      root: scanRoot,
+      kind,
+      query: wantsPatch(arg) ? "apply fix" : kind,
+    });
+  } catch (err) {
+    console.log(
+      c.yellow(
+        `Scan failed — falling back to AI explanation only. (${err instanceof Error ? err.message : String(err)})`,
+      ),
+    );
+    history.push({
+      role: "user",
+      content: `Forced ${kind} scan failed on ${scanRoot}. Explain what that scan usually looks for and how to retry.`,
+    });
+    if (aiEnabled) await streamAi(history, showThinking, false);
+    return;
+  }
 
-  printLocalEngine(report);
-  console.log(formatCliReport(report));
+  printLocalBrief(report);
   await persistQuiet(report);
 
   history.push({
     role: "user",
-    content: `Local ${kind} scan complete. Narrate only from this evidence:\n${JSON.stringify(compactReport(report), null, 2)}`,
+    content: [
+      `I ran a ${kind} scan. Give a fresh, natural summary of what matters and what to fix first.`,
+      `Vary your wording — do not sound like a template.`,
+      `SCAN_EVIDENCE_JSON:`,
+      JSON.stringify(compactReport(report), null, 2),
+      `LOCAL_RANKING:`,
+      analyzeLocally(report).offlineNarrative,
+    ].join("\n"),
   });
 
   if (aiEnabled) {
-    await streamAi(history);
+    await streamAi(history, showThinking, false);
   } else {
-    console.log(
-      c.dim("AI narration skipped (/ai on to enable). Local report above is complete."),
-    );
-    console.log("");
+    console.log(formatCliReport(report));
   }
-
-  return report;
 }
 
 async function handleChat(
@@ -231,125 +260,159 @@ async function handleChat(
   root: string,
   history: ChatCompletionMessageParam[],
   aiEnabled: boolean,
-): Promise<SentinelReport> {
-  const routed = routeQuery(userText);
-  console.log(
-    c.dim(`Local router → ${routed.label} (${routed.kind}) on ${root}`),
-  );
-  console.log(c.dim("Running local scanners (no cloud required)..."));
+  showThinking: boolean,
+): Promise<void> {
+  const security = isSecurityQuestion(userText);
+  // No security keywords → use fallback OpenRouter key first
+  const preferFallback = !security;
+  let evidenceBlock = "";
 
-  const report = await runScan({
-    root,
-    kind: routed.kind === "iam" ? "full" : routed.kind,
-    query: userText,
-  });
-
-  // PRIMARY answer = local engine
-  printLocalEngine(report);
-  await persistQuiet(report);
+  if (security) {
+    try {
+      const routed = routeQuery(userText);
+      console.log(
+        c.dim(`Security ask → local ${routed.kind} scan on ${root} ...`),
+      );
+      const report = await runScan({
+        root,
+        kind: routed.kind === "iam" ? "full" : routed.kind,
+        query: userText,
+      });
+      printLocalBrief(report);
+      await persistQuiet(report);
+      evidenceBlock = [
+        "",
+        "SCAN_EVIDENCE_JSON (cite these if relevant; do not invent):",
+        JSON.stringify(compactReport(report), null, 2),
+      ].join("\n");
+    } catch (err) {
+      console.log(
+        c.yellow(
+          `Local scan failed — falling back to AI-only reply. (${err instanceof Error ? err.message : String(err)})`,
+        ),
+      );
+    }
+  } else {
+    console.log(c.dim("General chat → fallback AI key (no security keywords)"));
+  }
 
   history.push({
     role: "user",
     content: [
-      `User request: ${userText}`,
-      `IMPORTANT: Local scanners already produced the findings below.`,
-      `You are OPTIONAL narration. Do not invent new findings.`,
-      `Cite only file:line from SCAN_EVIDENCE_JSON.`,
+      userText,
       "",
-      "LOCAL_ANALYST:",
-      analyzeLocally(report).offlineNarrative,
-      "",
-      "SCAN_EVIDENCE_JSON:",
-      JSON.stringify(compactReport(report), null, 2),
-    ].join("\n"),
+      `Context: cwd=${root} · time=${new Date().toISOString()} · nonce=${Math.random().toString(36).slice(2, 8)}`,
+      preferFallback
+        ? "Mode: general chat (fallback key preferred)."
+        : "Mode: security assist (primary key preferred).",
+      "Reply in a natural, unique way. Do not reuse prior phrasing.",
+      evidenceBlock,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
 
-  if (aiEnabled && getNvidiaConfig()) {
-    console.log(
-      c.smartBlue("Optional AI narration (Nemotron) — grounded in local evidence"),
-    );
+  if (!aiEnabled || !getNvidiaConfig({ preferFallback })) {
+    if (security) {
+      console.log(
+        c.yellow(
+          "AI offline — showing local ranking only. Set OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
+        ),
+      );
+    } else {
+      console.log(
+        c.yellow(
+          "AI offline — add OPENROUTER_FALLBACK_API_KEY (or OPENROUTER_API_KEY) to ~/.sentineldev/.env",
+        ),
+      );
+    }
     console.log("");
-    await streamAi(history);
-  } else {
-    console.log(
-      c.dim(
-        "Done. Answer above is from the local engine. Enable AI with /ai on if you want narration.",
-      ),
-    );
-    console.log("");
+    return;
   }
 
-  return report;
-}
-
-function printLocalEngine(report: SentinelReport): void {
-  const analysis = analyzeLocally(report);
-  console.log("");
-  console.log(c.smartBlue("── Local engine (no API) ──"));
-  console.log("");
-  console.log(c.white(analysis.headline));
   console.log(
-    c.muted(
-      `risk: ${analysis.riskLabel} · score ${analysis.riskScore}/100 · findings ${report.findings.length}`,
+    c.smartBlue(
+      preferFallback ? "SentinelDev (fallback AI)" : "SentinelDev",
     ),
   );
   console.log("");
+  await streamAi(history, showThinking, preferFallback);
+}
 
-  if (analysis.priorityQueue.length === 0) {
-    console.log(c.dim(analysis.offlineNarrative));
+function printLocalBrief(report: SentinelReport): void {
+  const a = analyzeLocally(report);
+  console.log("");
+  console.log(
+    c.muted(
+      `local engine · ${a.riskLabel} · score ${a.riskScore}/100 · ${report.findings.length} finding(s)`,
+    ),
+  );
+  for (const f of a.priorityQueue.slice(0, 5)) {
+    const loc = f.evidence.line
+      ? `${f.evidence.file}:${f.evidence.line}`
+      : f.evidence.file;
+    console.log(c.redSoft(`  [${f.severity}] ${loc} — ${f.title}`));
+  }
+  if (report.findings.length > 5) {
+    console.log(c.dim(`  … +${report.findings.length - 5} more`));
+  }
+  console.log("");
+}
+
+async function streamAi(
+  history: ChatCompletionMessageParam[],
+  showThinking: boolean,
+  preferFallback = false,
+): Promise<void> {
+  let sawReasoning = false;
+  try {
+    const content = await streamSentinelChat({
+      messages: history,
+      temperature: 1.05,
+      maxTokens: 4096,
+      showThinking,
+      preferFallback,
+      onFallback: (from, to, reason) => {
+        console.log(c.dim(`fallback: ${from} → ${to} (${reason.slice(0, 80)})`));
+      },
+      handlers: {
+        onReasoning: (t) => {
+          if (!showThinking) return;
+          if (!sawReasoning) {
+            process.stdout.write(c.muted("[thinking] "));
+            sawReasoning = true;
+          }
+          process.stdout.write(c.muted(t));
+        },
+        onContent: (t) => {
+          if (sawReasoning) {
+            process.stdout.write("\n\n");
+            sawReasoning = false;
+          }
+          process.stdout.write(t);
+        },
+      },
+    });
+
+    process.stdout.write("\n\n");
+    history.push({ role: "assistant", content: content || "(empty)" });
+  } catch (err) {
+    console.log(
+      c.red(
+        `AI failed after all fallbacks: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
+    console.log(
+      c.dim(
+        "Local tools still work: /scan /endpoints /env /db  ·  check ~/.sentineldev/.env keys",
+      ),
+    );
     console.log("");
     return;
   }
 
-  console.log(c.red("Priority queue"));
-  analysis.priorityQueue.forEach((f, i) => {
-    const loc = f.evidence.line
-      ? `${f.evidence.file}:${f.evidence.line}`
-      : f.evidence.file;
-    console.log(c.red(`${i + 1}. [${f.severity}] ${f.title}`));
-    console.log(c.dim(`   id:    ${f.id}`));
-    console.log(c.redSoft(`   where: ${loc}`));
-    console.log(c.dim(`   why:   ${f.description}`));
-    console.log(c.green(`   fix:   ${f.remediation}`));
-  });
-  console.log("");
-  console.log(c.white("Next actions"));
-  analysis.actions.forEach((a, i) => console.log(c.dim(`  ${i + 1}. ${a}`)));
-  console.log("");
-}
-
-async function streamAi(history: ChatCompletionMessageParam[]): Promise<void> {
-  if (!getNvidiaConfig()) {
-    console.log(c.yellow("NVIDIA_API_KEY missing — local engine result stands alone."));
-    return;
-  }
-
-  let sawReasoning = false;
-  const content = await streamSentinelChat({
-    messages: history,
-    handlers: {
-      onReasoning: (t) => {
-        if (!sawReasoning) {
-          process.stdout.write(c.muted("[thinking] "));
-          sawReasoning = true;
-        }
-        process.stdout.write(c.muted(t));
-      },
-      onContent: (t) => {
-        if (sawReasoning) {
-          process.stdout.write("\n\n");
-          sawReasoning = false;
-        }
-        process.stdout.write(t);
-      },
-    },
-  });
-
-  process.stdout.write("\n\n");
-  history.push({ role: "assistant", content: content || "(empty response)" });
-
-  if (history.length > 24) {
-    history.splice(1, history.length - 21);
+  if (history.length > 30) {
+    history.splice(1, history.length - 25);
   }
 }
 
@@ -358,8 +421,7 @@ function compactReport(report: SentinelReport) {
     summary: report.summary,
     scanKind: report.scanKind,
     targetPath: report.targetPath,
-    scannedAt: report.scannedAt,
-    findings: report.findings.map((f) => ({
+    findings: report.findings.slice(0, 20).map((f) => ({
       id: f.id,
       severity: f.severity,
       title: f.title,
@@ -368,17 +430,24 @@ function compactReport(report: SentinelReport) {
       line: f.evidence.line,
       snippet: f.evidence.snippet,
       remediation: f.remediation,
-      proposedPatch: f.proposedPatch,
     })),
   };
 }
 
 async function persistQuiet(report: SentinelReport) {
-  const rows = reportToFixLogs(report);
-  const persist = await persistFixLogs(rows);
-  if (persist.ok) {
-    console.log(c.green(`Supabase: stored ${persist.count} fix_log row(s).`));
-  } else if (persist.error && !persist.error.includes("not configured")) {
-    console.log(c.dim(`Supabase: ${persist.error}`));
+  try {
+    const rows = reportToFixLogs(report);
+    const persist = await persistFixLogs(rows);
+    if (persist.ok) {
+      console.log(c.green(`Supabase: stored ${persist.count} fix_log row(s).`));
+    } else if (persist.error && !persist.error.includes("not configured")) {
+      console.log(c.dim(`Supabase (non-fatal): ${persist.error}`));
+    }
+  } catch (err) {
+    console.log(
+      c.dim(
+        `Supabase persist skipped: ${err instanceof Error ? err.message : String(err)}`,
+      ),
+    );
   }
 }

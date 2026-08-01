@@ -9,7 +9,20 @@ export type ScanKind =
   | "database"
   | "scramble"
   | "iam"
+  | "ossprey"
   | "full";
+
+export type ProblemType =
+  | "exposed_endpoint"
+  | "secret_leak"
+  | "weak_auth"
+  | "debug_exposure"
+  | "database_exposure"
+  | "injection"
+  | "overly_permissive_iam"
+  | "supply_chain_malware"
+  | "misconfiguration"
+  | "general";
 
 export interface Evidence {
   file: string;
@@ -21,13 +34,19 @@ export interface Evidence {
 export interface Finding {
   id: string;
   severity: Severity;
-  category: ScanKind | "general";
+  category: ScanKind | "general" | "ossprey";
   title: string;
   description: string;
   evidence: Evidence;
   remediation: string;
   /** Suggested patch text (never applied automatically). */
   proposedPatch?: string;
+  problemType?: ProblemType;
+}
+
+export interface ProjectContext {
+  name: string;
+  details: string;
 }
 
 export interface SentinelReport {
@@ -39,20 +58,30 @@ export interface SentinelReport {
   scanKind: ScanKind;
   targetPath: string;
   scannedAt: string;
+  project?: ProjectContext;
 }
 
 /** Supabase-compatible fix log row. */
 export interface FixLogRow {
   id?: string;
+  /** ISO timestamp — when logged / detected */
   timestamp: string;
+  detected_at?: string;
+  fixed_at?: string | null;
   severity: Severity;
+  /** e.g. exposed_endpoint, secret_leak, injection */
+  problem_type: ProblemType | string;
   description: string;
   evidence_snippet: string;
   proposed_remediation: string;
+  project_name?: string | null;
+  project_details?: string | null;
   category?: string;
   file_path?: string;
   line_number?: number;
-  status?: "open" | "proposed" | "applied" | "dismissed";
+  status?: "open" | "proposed" | "applied" | "fixed" | "dismissed";
+  /** true when the issue has been remediated */
+  fixed?: boolean;
   metadata?: Record<string, unknown>;
 }
 
@@ -62,6 +91,7 @@ export interface ScanOptions {
   query?: string;
   /** Soft file budget to keep scans responsive. */
   maxFiles?: number;
+  project?: ProjectContext;
 }
 
 export interface RouteMatch {

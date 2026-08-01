@@ -1,13 +1,45 @@
 /**
- * Load env from cwd, package root, and ~/.sentineldev/.env
- * so `sentinel` works globally with AI keys.
+ * Env loading — secrets stay OUTSIDE the project workspace.
+ *
+ * Priority (later wins for overrides):
+ *   1) project .env / .env.local  (non-secrets only — no API keys expected)
+ *   2) ~/.sentineldev/.env        (REAL secrets — never in git)
  */
+
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-function applyEnvFile(filePath: string) {
+/** Keys that must never be read from the project workspace if avoidable. */
+const SECRET_KEYS = new Set([
+  "OPENROUTER_API_KEY",
+  "OPENROUTER_FALLBACK_API_KEY",
+  "OPENROUTER_API_KEY_FALLBACK",
+  "OPENAI_API_KEY",
+  "OPENAI_FALLBACK_API_KEY",
+  "NVIDIA_API_KEY",
+  "NVAPI_KEY",
+  "OSSPREY_API_KEY",
+  "OSPREY_API_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "MODAL_TOKEN_ID",
+  "MODAL_TOKEN_SECRET",
+]);
+
+export function userSecretsPath(): string {
+  return path.join(os.homedir(), ".sentineldev", ".env");
+}
+
+function applyEnvFile(
+  filePath: string,
+  opts?: { allowSecrets?: boolean; overwrite?: boolean },
+) {
   if (!fs.existsSync(filePath)) return;
+  const allowSecrets = opts?.allowSecrets ?? true;
+  const overwrite = opts?.overwrite ?? false;
+
   for (const raw of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
@@ -21,45 +53,87 @@ function applyEnvFile(filePath: string) {
     ) {
       value = value.slice(1, -1);
     }
-    if (!process.env[key]) process.env[key] = value;
+
+    // Block secret keys coming from project workspace files
+    if (!allowSecrets && SECRET_KEYS.has(key)) {
+      continue;
+    }
+
+    if (overwrite || !process.env[key]) {
+      process.env[key] = value;
+    }
   }
 }
 
 export function loadEnvFiles(packageRootHint?: string) {
-  const homeDir = path.join(os.homedir(), ".sentineldev");
-  const candidates = [
-    path.resolve(process.cwd(), ".env.local"),
+  const homeSecrets = userSecretsPath();
+
+  const projectFiles: string[] = [
     path.resolve(process.cwd(), ".env"),
-    path.join(homeDir, ".env"),
-    path.join(homeDir, "env"),
+    path.resolve(process.cwd(), ".env.local"),
   ];
 
   if (packageRootHint) {
-    candidates.push(
-      path.join(packageRootHint, ".env.local"),
+    projectFiles.push(
       path.join(packageRootHint, ".env"),
+      path.join(packageRootHint, ".env.local"),
     );
   }
 
-  // When running from src/cli, package root is ../..
   try {
     const fromCli = path.resolve(__dirname, "../..");
-    candidates.push(path.join(fromCli, ".env.local"), path.join(fromCli, ".env"));
+    projectFiles.push(
+      path.join(fromCli, ".env"),
+      path.join(fromCli, ".env.local"),
+    );
   } catch {
     // ignore
   }
 
-  for (const p of candidates) applyEnvFile(p);
+  // 1) Project files — ignore secret keys (keeps keys out of "virtual"/workspace env)
+  for (const p of projectFiles) {
+    applyEnvFile(p, { allowSecrets: false, overwrite: false });
+  }
+
+  // 2) User home secrets — authoritative for API keys
+  applyEnvFile(homeSecrets, { allowSecrets: true, overwrite: true });
 }
 
-/** Ensure ~/.sentineldev/.env exists (copy keys for global CLI). */
-export function ensureUserEnv(contents?: string) {
+/**
+ * Ensure ~/.sentineldev exists. Does NOT copy project .env.local anymore
+ * (that would pull secrets back into a sync path from the workspace).
+ */
+export function ensureUserEnv(): string {
   const homeDir = path.join(os.homedir(), ".sentineldev");
   if (!fs.existsSync(homeDir)) fs.mkdirSync(homeDir, { recursive: true });
-  const dest = path.join(homeDir, ".env");
-  if (contents && !fs.existsSync(dest)) {
-    fs.writeFileSync(dest, contents, "utf8");
-    return dest;
+  const dest = userSecretsPath();
+  if (!fs.existsSync(dest)) {
+    fs.writeFileSync(
+      dest,
+      [
+        "# SentinelDev secrets (outside project)",
+        "# OPENROUTER_API_KEY=...              # primary (security keywords)",
+        "# OPENROUTER_FALLBACK_API_KEY=...     # general chat + failure fallback",
+        "# OSSPREY_API_KEY=ospy_...            # supply-chain malware scans",
+        "# NEXT_PUBLIC_SUPABASE_URL=...",
+        "# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
   }
   return dest;
+}
+
+export function secretsConfigured(): boolean {
+  loadEnvFiles();
+  return Boolean(
+    process.env.OPENROUTER_API_KEY ||
+      process.env.OPENROUTER_FALLBACK_API_KEY ||
+      process.env.OPENROUTER_API_KEY_FALLBACK ||
+      process.env.OPENAI_API_KEY ||
+      process.env.OPENAI_FALLBACK_API_KEY ||
+      process.env.NVIDIA_API_KEY ||
+      process.env.NVAPI_KEY,
+  );
 }

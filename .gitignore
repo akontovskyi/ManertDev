@@ -9,11 +9,16 @@ out/
 build/
 dist/
 
-# env / secrets
+# env / secrets — never commit
 .env
 .env.local
 .env.*.local
 !.env.example
+.sentineldev/.env
+**/.sentineldev/.env
+*.pem
+*.key
+credentials.json
 
 # debug / logs
 npm-debug.log*

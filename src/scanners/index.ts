@@ -1,15 +1,18 @@
 import type { Finding, ScanKind, ScanOptions, SentinelReport } from "@/lib/types";
 import { wantsPatch } from "@/lib/router";
+import { loadProjectContext, inferProblemType } from "@/lib/report";
 import { scanEndpoints } from "./endpoints";
 import { scanSecrets } from "./secrets";
 import { scanEntrances } from "./entrances";
 import { scanDatabase } from "./database";
 import { scanScramble } from "./scramble";
+import { scanOssprey } from "./ossprey";
 import { analyzeIamDocument } from "./iam";
 
 export async function runScan(options: ScanOptions): Promise<SentinelReport> {
   const { root, kind, query } = options;
   const includePatch = query ? wantsPatch(query) : false;
+  const project = options.project || loadProjectContext(root);
 
   let findings: Finding[] = [];
 
@@ -29,6 +32,9 @@ export async function runScan(options: ScanOptions): Promise<SentinelReport> {
     case "scramble":
       findings = await scanScramble(root);
       break;
+    case "ossprey":
+      findings = await scanOssprey(root);
+      break;
     case "iam":
       findings = [
         {
@@ -44,19 +50,41 @@ export async function runScan(options: ScanOptions): Promise<SentinelReport> {
       ];
       break;
     case "full":
-    default:
-      findings = (
-        await Promise.all([
-          scanEndpoints(root),
-          scanSecrets(root),
-          scanEntrances(root),
-          scanDatabase(root),
-        ])
-      ).flat();
+    default: {
+      const local = await Promise.all([
+        scanEndpoints(root),
+        scanSecrets(root),
+        scanEntrances(root),
+        scanDatabase(root),
+      ]);
+      // Ossprey is optional/networked — never fail the full sweep
+      let supply: Finding[] = [];
+      try {
+        supply = await scanOssprey(root);
+      } catch (err) {
+        supply = [
+          {
+            id: "ossprey_full_fallback",
+            severity: "Info",
+            category: "ossprey",
+            title: "Ossprey skipped during full scan",
+            description:
+              err instanceof Error ? err.message : String(err),
+            evidence: { file: root, snippet: "(supply-chain scan fallback)" },
+            remediation: "Retry with: sentinel ossprey",
+            problemType: "supply_chain_malware",
+          },
+        ];
+      }
+      findings = [...local.flat(), ...supply];
       break;
+    }
   }
 
-  findings = sortFindings(findings);
+  findings = sortFindings(findings).map((f) => ({
+    ...f,
+    problemType: f.problemType || inferProblemType(f),
+  }));
 
   const evidence = findings.map((f) => f.evidence);
   const proposedFixes = findings.map(
@@ -72,8 +100,8 @@ export async function runScan(options: ScanOptions): Promise<SentinelReport> {
 
   const summary =
     findings.length === 0
-      ? `No findings for ${kind} scan on \`${root}\`.`
-      : `SentinelDev ${kind} scan on \`${root}\` found ${findings.length} issue(s)` +
+      ? `No findings for ${kind} scan on \`${root}\` (project: ${project.name}).`
+      : `SentinelDev ${kind} scan on \`${root}\` [${project.name}] found ${findings.length} issue(s)` +
         (critical || high
           ? ` (${critical} Critical, ${high} High). Propose-only — no files were modified.`
           : `. Propose-only — no files were modified.`);
@@ -87,6 +115,7 @@ export async function runScan(options: ScanOptions): Promise<SentinelReport> {
     scanKind: kind,
     targetPath: root,
     scannedAt: new Date().toISOString(),
+    project,
   };
 }
 
@@ -152,6 +181,7 @@ export function kindFromString(value: string | undefined): ScanKind {
     "database",
     "scramble",
     "iam",
+    "ossprey",
     "full",
   ];
   return (allowed.includes(v as ScanKind) ? v : "full") as ScanKind;

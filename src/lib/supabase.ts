@@ -61,11 +61,54 @@ export async function persistFixLogs(
     };
   }
 
+  if (!rows.length) return { ok: true, count: 0 };
+
   const { error } = await sb.from("fix_logs").insert(rows);
   if (error) {
     return { ok: false, error: error.message, count: 0 };
   }
   return { ok: true, count: rows.length };
+}
+
+/** Manually insert one security issue row. */
+export async function insertFixLog(
+  row: FixLogRow,
+): Promise<{ ok: boolean; error?: string; id?: string }> {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, error: "Supabase not configured" };
+
+  const { data, error } = await sb.from("fix_logs").insert(row).select("id").single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data?.id as string };
+}
+
+/** Mark an issue fixed by id (uuid or finding_id in metadata). */
+export async function markFixLogFixed(
+  idOrFindingId: string,
+): Promise<{ ok: boolean; error?: string; count: number }> {
+  const sb = getSupabase();
+  if (!sb) return { ok: false, error: "Supabase not configured", count: 0 };
+
+  const now = new Date().toISOString();
+  const byId = await sb
+    .from("fix_logs")
+    .update({ fixed: true, status: "fixed", fixed_at: now })
+    .eq("id", idOrFindingId)
+    .select("id");
+
+  if (!byId.error && byId.data && byId.data.length > 0) {
+    return { ok: true, count: byId.data.length };
+  }
+
+  // Fallback: match metadata->>finding_id
+  const { data, error } = await sb
+    .from("fix_logs")
+    .update({ fixed: true, status: "fixed", fixed_at: now })
+    .filter("metadata->>finding_id", "eq", idOrFindingId)
+    .select("id");
+
+  if (error) return { ok: false, error: error.message, count: 0 };
+  return { ok: true, count: data?.length || 0 };
 }
 
 export async function listFixLogs(limit = 50): Promise<FixLogRow[]> {
