@@ -24,6 +24,7 @@ import {
   isSecurityQuestion,
 } from "../lib/nvidia";
 import { analyzeLocally } from "../lib/local-analyst";
+import { compactReport } from "../lib/scan-evidence";
 import { editorLabel } from "../lib/editor";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import type { SentinelReport } from "../lib/types";
@@ -401,24 +402,6 @@ async function streamAi(
   if (history.length > 30) {
     history.splice(1, history.length - 25);
   }
-}
-
-function compactReport(report: SentinelReport) {
-  return {
-    summary: report.summary,
-    scanKind: report.scanKind,
-    targetPath: report.targetPath,
-    findings: report.findings.slice(0, 20).map((f) => ({
-      id: f.id,
-      severity: f.severity,
-      title: f.title,
-      description: f.description,
-      file: f.evidence.file,
-      line: f.evidence.line,
-      snippet: f.evidence.snippet,
-      remediation: f.remediation,
-    })),
-  };
 }
 
 async function persistQuiet(report: SentinelReport) {

@@ -55,7 +55,7 @@ export default function DashboardPage() {
       id: "welcome",
       role: "sentinel",
       content:
-        "SentinelDev console ready. Ask about endpoints, env/keys, admin/debug entrances, database exposure, scramble/rotate, or upload an IAM PDF. I only propose fixes — I never auto-modify code.",
+        "SentinelDev console ready. Ask anything — security keywords trigger a local scan + live model; general chat goes straight to the model. I only propose fixes — I never auto-modify code.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -118,6 +118,15 @@ export default function DashboardPage() {
     const q = (preset ?? input).trim();
     if (!q || pending) return;
     if (!preset) setInput("");
+
+    const history = messages
+      .filter((m) => m.id !== "welcome")
+      .slice(-12)
+      .map((m) => ({
+        role: (m.role === "user" ? "user" : "assistant") as "user" | "assistant",
+        content: m.content,
+      }));
+
     setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", content: q }]);
 
     startTransition(async () => {
@@ -125,7 +134,7 @@ export default function DashboardPage() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: q, root }),
+          body: JSON.stringify({ query: q, root, history }),
         });
         const data = await res.json();
         setMessages((m) => [
@@ -133,7 +142,7 @@ export default function DashboardPage() {
           {
             id: crypto.randomUUID(),
             role: "sentinel",
-            content: data.markdown || data.error || "No response.",
+            content: data.reply || data.markdown || data.error || "No response.",
           },
         ]);
         if (Array.isArray(data.findings)) {
@@ -150,7 +159,7 @@ export default function DashboardPage() {
           {
             id: crypto.randomUUID(),
             role: "sentinel",
-            content: `Scan failed: ${err instanceof Error ? err.message : "unknown error"}`,
+            content: `Chat failed: ${err instanceof Error ? err.message : "unknown error"}`,
           },
         ]);
       }
@@ -187,7 +196,7 @@ export default function DashboardPage() {
         {
           id: crypto.randomUUID(),
           role: "sentinel",
-          content: data.markdown || data.error || "PDF analysis failed.",
+          content: data.reply || data.markdown || data.error || "PDF analysis failed.",
         },
       ]);
       if (Array.isArray(data.findings)) {
@@ -266,7 +275,7 @@ export default function DashboardPage() {
           {
             id: crypto.randomUUID(),
             role: "sentinel",
-            content: data.markdown || data.error || "PDF analysis failed.",
+            content: data.reply || data.markdown || data.error || "PDF analysis failed.",
           },
         ]);
         if (Array.isArray(data.findings)) {
@@ -513,8 +522,8 @@ export default function DashboardPage() {
         <header style={styles.top}>
           <h1 style={styles.h1}>Security console</h1>
           <p style={styles.sub}>
-            Keyword routing: endpoints · env/keys · admin/debug · database ·
-            scramble · IAM · fix/patch
+            Live model chat · keyword scans: endpoints · env/keys · admin/debug ·
+            database · scramble · IAM · fix/patch
           </p>
         </header>
 
@@ -550,7 +559,7 @@ export default function DashboardPage() {
             disabled={pending}
           />
           <button style={styles.send} type="submit" disabled={pending}>
-            {pending ? "Scanning…" : "Ask"}
+            {pending ? "Thinking…" : "Ask"}
           </button>
         </form>
       </section>
