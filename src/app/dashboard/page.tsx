@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type CSSProperties,
+} from "react";
 import { buildFixPrompt } from "@/lib/fix-prompt";
 
 type ChatMessage = {
@@ -65,6 +72,19 @@ export default function DashboardPage() {
   const [copiedFindingId, setCopiedFindingId] = useState<string | null>(null);
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  // `sentinel dashboard` opens /dashboard?root=<absolute cwd>
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fromQuery = params.get("root");
+      if (fromQuery && fromQuery.trim()) {
+        setRoot(fromQuery.trim());
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const findingsBySeverity = useMemo(() => {
     const order = ["Critical", "High", "Medium", "Low", "Info"];
@@ -284,7 +304,7 @@ export default function DashboardPage() {
             style={styles.input}
             value={root}
             onChange={(e) => setRoot(e.target.value)}
-            placeholder="."
+            placeholder="Absolute path (from sentinel dashboard)"
           />
         </label>
 

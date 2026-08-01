@@ -10,6 +10,7 @@
  *   sentinel explain <file>
  *   sentinel fix <issue-id>
  *   sentinel diff <file>
+ *   sentinel dashboard
  *   sentinel ossprey [path]
  *   sentinel supabase
  *   sentinel install
@@ -50,6 +51,7 @@ import type { Finding, ScanKind, SentinelReport } from "../lib/types";
 import { editorLabel } from "../lib/editor";
 import { loadEnvFiles, ensureUserEnv } from "../lib/env";
 import { startRepl } from "./repl";
+import { openDashboard } from "./dashboard";
 import { getNvidiaConfig } from "../lib/nvidia";
 import {
   loadProjectContext,
@@ -102,6 +104,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     "mark-fixed",
     "ossprey",
     "osprey",
+    "dashboard",
+    "ui",
   ]);
 
   let startIdx = 1;
@@ -210,6 +214,20 @@ async function main() {
 
   if (cmd === "chat" || cmd === "repl") {
     await startRepl({ root });
+    return;
+  }
+
+  if (cmd === "dashboard" || cmd === "ui") {
+    // Scan root = where sentinel was executed (cwd), unless --root overrides
+    let dashRoot = root;
+    const pos = parsed.positional[0];
+    if (pos) {
+      const maybe = path.resolve(pos);
+      if (pos === "." || fs.existsSync(maybe)) {
+        dashRoot = path.resolve(pos);
+      }
+    }
+    await openDashboard({ root: dashRoot });
     return;
   }
 

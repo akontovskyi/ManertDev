@@ -7,12 +7,17 @@ import { buildModalTaskDescription } from "@/lib/router";
 
 export const runtime = "nodejs";
 
+function resolveScanRoot(rootInput: string): string {
+  if (path.isAbsolute(rootInput)) return path.normalize(rootInput);
+  return path.resolve(process.cwd(), rootInput || ".");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const kind = kindFromString(body.kind);
     const rootInput = String(body.root || process.env.SENTINEL_SCAN_ROOT || ".");
-    const root = path.resolve(process.cwd(), rootInput);
+    const root = resolveScanRoot(rootInput);
     const query = String(body.query || kind);
 
     const report = await runScan({ root, kind, query });
