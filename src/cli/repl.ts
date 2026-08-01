@@ -13,6 +13,7 @@ import {
   c,
   asciiLogoPublic,
   bannerPublic,
+  formatCommandExamples,
 } from "../lib/cli-theme";
 import { reportToFixLogs } from "../lib/report";
 import { persistFixLogs } from "../lib/supabase";
@@ -63,16 +64,11 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
     ),
   );
   console.log("");
-  console.log(c.white("Commands:"));
-  console.log(c.dim("  /scan [path]     force local full sweep + AI summary"));
-  console.log(c.dim("  /endpoints|/env|/db|/ossprey   targeted local scan + AI"));
-  console.log(c.dim("  /ai on|off       toggle live AI (default on)"));
-  console.log(c.dim("  /think on|off    show model thinking stream"));
-  console.log(c.dim("  /cd <path>       change scan root"));
-  console.log(c.dim("  /help  /exit"));
-  console.log("");
+  console.log(formatCommandExamples());
   console.log(
-    c.violet('Try: "hi" · "tell me a joke" · "find exposed endpoints"'),
+    c.violet(
+      'Quick try: "hi" · "/scan" · "/ossprey" · "find exposed endpoints"',
+    ),
   );
   console.log("");
 
@@ -115,11 +111,8 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
     }
 
     if (line === "/help") {
-      console.log(
-        c.dim(
-          "Chat freely. Security keywords trigger local scans. /scan /ai /think /cd /exit",
-        ),
-      );
+      console.log("");
+      console.log(formatCommandExamples());
       continue;
     }
 
@@ -204,9 +197,7 @@ async function handleSlash(
   const kind = map[cmd || ""];
   if (!kind) {
     console.log(
-      c.dim(
-        "Unknown. Try /scan /endpoints /env /db /ossprey /ai /think /cd /help /exit",
-      ),
+      c.dim("Unknown. Type /help for all commands and examples."),
     );
     return;
   }
