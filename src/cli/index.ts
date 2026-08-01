@@ -40,6 +40,12 @@ import {
   probeOssprey,
   getOsspreyConfigStatus,
 } from "../lib/ossprey";
+import {
+  probeModal,
+  getModalConfigStatus,
+  runModalHeavyScan,
+  runModalAsk,
+} from "../lib/modal";
 import type { Finding, ScanKind, SentinelReport } from "../lib/types";
 import { editorLabel } from "../lib/editor";
 import { loadEnvFiles, ensureUserEnv } from "../lib/env";
@@ -328,6 +334,12 @@ async function main() {
         `  ossprey:    ${osprey.configured ? `key set · ${osprey.baseUrl}` : "(no OSSPREY_API_KEY)"}`,
       ),
     );
+    const modalCfg = getModalConfigStatus();
+    console.log(
+      c.dim(
+        `  modal:      ${modalCfg.configured ? `ready · profile ${modalCfg.profile || "default"}` : "(run python -m modal setup)"}`,
+      ),
+    );
     const probe = await probeSupabase();
     console.log("");
     if (probe.ok) {
@@ -343,6 +355,12 @@ async function main() {
       console.log(c.green(`OK  ${op.message}`));
     } else {
       console.log(c.yellow(`WARN  Ossprey: ${op.message}`));
+    }
+    const mp = await probeModal();
+    if (mp.ok) {
+      console.log(c.green(`OK  ${mp.message}`));
+    } else {
+      console.log(c.yellow(`WARN  Modal: ${mp.message}`));
     }
     console.log("");
     return;
@@ -368,17 +386,108 @@ async function main() {
   }
 
   if (cmd === "modal") {
-    const routed = routeQuery(query || "full scan");
-    const task = buildModalTaskDescription({
-      root,
-      kind: routed.kind,
-      query: query || routed.label,
-    });
-    console.log("");
-    console.log(c.smartBlue("Modal task description (copy / POST)"));
-    console.log("");
-    console.log(task);
-    console.log("");
+    // sentinel modal [--ask "..." | "deep scan"] [--narrate]
+    const args = process.argv.slice(3);
+    let askPrompt = "";
+    let narrate = false;
+    const rest: string[] = [];
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "--ask" && args[i + 1]) {
+        askPrompt = args[++i];
+      } else if (args[i] === "--narrate") {
+        narrate = true;
+      } else if (args[i] === "--ping") {
+        const mp = await probeModal();
+        console.log("");
+        console.log(mp.ok ? c.green(mp.message) : c.red(mp.message));
+        if (mp.details) console.log(c.dim(JSON.stringify(mp.details, null, 2)));
+        console.log("");
+        return;
+      } else if (!args[i].startsWith("-")) {
+        rest.push(args[i]);
+      }
+    }
+    if (!askPrompt && rest[0] && /^(ask|chat)$/i.test(rest[0])) {
+      askPrompt = rest.slice(1).join(" ");
+      rest.length = 0;
+    }
+
+    if (askPrompt) {
+      console.log(c.dim("Modal model ask → OpenRouter via Modal worker"));
+      try {
+        const out = (await runModalAsk({ prompt: askPrompt })) as {
+          content?: string;
+          model?: string;
+          ok?: boolean;
+        };
+        console.log("");
+        console.log(c.smartBlue(`Modal model (${out.model || "openrouter"})`));
+        console.log("");
+        console.log(out.content || JSON.stringify(out, null, 2));
+        console.log("");
+      } catch (err) {
+        console.error(
+          c.red(err instanceof Error ? err.message : String(err)),
+        );
+        process.exitCode = 1;
+      }
+      return;
+    }
+
+    const scanQuery = query || rest.join(" ") || "full scan";
+
+    const routed = routeQuery(scanQuery);
+    console.log(
+      c.dim(
+        `Modal heavy scan (${routed.kind}) → ${root}${narrate ? " + model narrate" : ""}`,
+      ),
+    );
+    try {
+      const out = (await runModalHeavyScan({
+        root,
+        kind: routed.kind,
+        query: scanQuery,
+        narrate,
+      })) as {
+        summary?: string;
+        findings?: Finding[];
+        narration?: string;
+        fileCount?: number;
+      };
+
+      const report: SentinelReport = {
+        summary: out.summary || "Modal heavy scan complete.",
+        findings: out.findings || [],
+        evidence: (out.findings || []).map((f) => f.evidence),
+        proposedFixes: (out.findings || []).map(
+          (f) => `[${f.severity}] ${f.title} → ${f.remediation}`,
+        ),
+        scanKind: routed.kind === "iam" ? "full" : routed.kind,
+        targetPath: root,
+        scannedAt: new Date().toISOString(),
+      };
+      await printReport(report);
+      if (out.narration) {
+        console.log(c.smartBlue("Modal model narration"));
+        console.log(out.narration);
+        console.log("");
+      }
+      console.log(c.dim(`files sent: ${out.fileCount ?? "?"}`));
+      console.log("");
+    } catch (err) {
+      console.error(c.red(err instanceof Error ? err.message : String(err)));
+      console.log("");
+      console.log(c.dim("Fallback: local task description"));
+      console.log(
+        buildModalTaskDescription({
+          root,
+          kind: routed.kind,
+          query: scanQuery,
+        }),
+      );
+      console.log("");
+      process.exitCode = 1;
+    }
     return;
   }
 

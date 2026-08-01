@@ -16,9 +16,16 @@ dist/
 !.env.example
 .sentineldev/.env
 **/.sentineldev/.env
+.sentineldev/
+**/.sentineldev/
 *.pem
 *.key
 credentials.json
+
+# python
+__pycache__/
+*.py[cod]
+.modal.toml
 
 # debug / logs
 npm-debug.log*

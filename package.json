@@ -24,6 +24,8 @@
     "supabase/**/*",
     "fixtures/**/*",
     "scripts/**/*",
+    "modal_app/**/*",
+    "requirements-modal.txt",
     "README.md",
     ".env.example",
     "package.json",

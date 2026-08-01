@@ -62,6 +62,10 @@ create index if not exists fix_logs_problem_type_idx on public.fix_logs (problem
 
 alter table public.fix_logs enable row level security;
 
+-- Publishable / anon key needs table grants as well as RLS policies
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.fix_logs to anon, authenticated;
+
 drop policy if exists "Allow read fix_logs" on public.fix_logs;
 drop policy if exists "Allow insert fix_logs" on public.fix_logs;
 drop policy if exists "Allow update fix_logs" on public.fix_logs;
