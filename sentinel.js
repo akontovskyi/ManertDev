@@ -14,6 +14,9 @@ const path = require("node:path");
 
 const cli = path.join(__dirname, "src", "cli", "index.ts");
 const localTsx = path.join(__dirname, "node_modules", "tsx", "dist", "cli.mjs");
+// Pin aliases (@/*) to this package — without this, tsx reads cwd's tsconfig
+// and breaks when `sentinel` is run from another project.
+const tsconfig = path.join(__dirname, "tsconfig.json");
 
 function withSystemCa(env) {
   const next = { ...env };
@@ -28,20 +31,21 @@ function withSystemCa(env) {
 const args = process.argv.slice(2);
 const env = withSystemCa(process.env);
 const nodeArgs = ["--use-system-ca"];
+const tsxArgs = ["--tsconfig", tsconfig, cli, ...args];
 
 // Prefer local tsx (now a runtime dependency)
 let result;
 if (fs.existsSync(localTsx)) {
   result = spawnSync(
     process.execPath,
-    [...nodeArgs, localTsx, cli, ...args],
+    [...nodeArgs, localTsx, ...tsxArgs],
     { stdio: "inherit", env },
   );
 } else {
   // Fallback: npx tsx, still with system CA via NODE_OPTIONS
   result = spawnSync(
     process.platform === "win32" ? "npx.cmd" : "npx",
-    ["--yes", "tsx", cli, ...args],
+    ["--yes", "tsx", ...tsxArgs],
     { stdio: "inherit", env, shell: true },
   );
 }

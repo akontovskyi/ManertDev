@@ -8,10 +8,10 @@
     "build": "node --use-system-ca ./node_modules/next/dist/bin/next build",
     "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
     "lint": "next lint",
-    "cli": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs src/cli/index.ts",
-    "sentinel": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs src/cli/index.ts",
-    "scan": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs src/cli/index.ts scan",
-    "supabase:probe": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs scripts/probe-supabase.ts",
+    "cli": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts",
+    "sentinel": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts",
+    "scan": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json src/cli/index.ts scan",
+    "supabase:probe": "node --use-system-ca ./node_modules/tsx/dist/cli.mjs --tsconfig ./tsconfig.json scripts/probe-supabase.ts",
     "typecheck": "tsc --noEmit"
   },
   "bin": {
