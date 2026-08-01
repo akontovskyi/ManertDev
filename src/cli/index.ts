@@ -196,9 +196,9 @@ async function main() {
       getNvidiaConfig({ preferFallback: true }) || getNvidiaConfig();
     console.log(
       cfg
-        ? c.dim(`  AI ready: ${cfg.model} (${cfg.label.split(":")[0]}) · auto-fallback on`)
+        ? c.dim(`  Live model ready: ${cfg.model} · auto-fallback on`)
         : c.yellow(
-            "  AI: set OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
+            "  Live model: set OPENROUTER_API_KEY and/or OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
           ),
     );
     console.log(
@@ -325,7 +325,7 @@ async function main() {
       getNvidiaConfig({ preferFallback: true }) || getNvidiaConfig();
     console.log(
       c.dim(
-        `  llm:        ${nv ? `${nv.model} · fallbacks on` : "(no API key)"}`,
+        `  model:      ${nv ? `LIVE · ${nv.model} · fallbacks on` : "(no API key)"}`,
       ),
     );
     const osprey = getOsspreyConfigStatus();
@@ -413,7 +413,7 @@ async function main() {
     }
 
     if (askPrompt) {
-      console.log(c.dim("Modal model ask → OpenRouter via Modal worker"));
+      console.log(c.dim("Modal → live model ask"));
       try {
         const out = (await runModalAsk({ prompt: askPrompt })) as {
           content?: string;
@@ -421,7 +421,7 @@ async function main() {
           ok?: boolean;
         };
         console.log("");
-        console.log(c.smartBlue(`Modal model (${out.model || "openrouter"})`));
+        console.log(c.smartBlue(`Live model (${out.model || "default"})`));
         console.log("");
         console.log(out.content || JSON.stringify(out, null, 2));
         console.log("");
@@ -439,7 +439,7 @@ async function main() {
     const routed = routeQuery(scanQuery);
     console.log(
       c.dim(
-        `Modal heavy scan (${routed.kind}) → ${root}${narrate ? " + model narrate" : ""}`,
+        `Modal heavy scan (${routed.kind}) → ${root}${narrate ? " + live model narrate" : ""}`,
       ),
     );
     try {
@@ -468,7 +468,7 @@ async function main() {
       };
       await printReport(report);
       if (out.narration) {
-        console.log(c.smartBlue("Modal model narration"));
+        console.log(c.smartBlue("Live model narration"));
         console.log(out.narration);
         console.log("");
       }

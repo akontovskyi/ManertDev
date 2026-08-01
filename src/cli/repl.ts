@@ -45,11 +45,11 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
   console.log(asciiLogoPublic());
   console.log("");
   console.log(
-    c.white("Ask anything. Live OpenRouter chat with automatic key/model fallbacks."),
+    c.white("Ask anything. Live model chat with automatic key/model fallbacks."),
   );
   console.log(
     c.dim(
-      "No security keywords → fallback AI key first. Security asks → primary key + local scan.",
+      "No security keywords → fallback model key first. Security asks → primary model + local scan.",
     ),
   );
   console.log(c.dim("Propose-only on code — I never auto-modify files."));
@@ -59,8 +59,8 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
   console.log(
     c.muted(
       aiEnabled
-        ? `ai:      LIVE · ${cfg!.provider} · ${cfg!.model} · multi-fallback`
-        : "ai:      OFF — set OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
+        ? `model:   LIVE · ${cfg!.model} · multi-fallback`
+        : "model:   OFF — set model keys in ~/.sentineldev/.env",
     ),
   );
   console.log("");
@@ -75,7 +75,7 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
   if (!aiEnabled) {
     console.log(
       c.yellow(
-        "No OpenRouter keys — chat limited. Add OPENROUTER_API_KEY and OPENROUTER_FALLBACK_API_KEY to ~/.sentineldev/.env then restart.",
+        "No model keys — chat limited. Add OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY to ~/.sentineldev/.env then restart.",
       ),
     );
     console.log("");
@@ -130,24 +130,24 @@ export async function startRepl(opts?: { root?: string }): Promise<void> {
       continue;
     }
 
-    if (line.startsWith("/ai")) {
-      const arg = line.slice(3).trim().toLowerCase();
+    if (line.startsWith("/ai") || line.startsWith("/model")) {
+      const arg = line.replace(/^\/(ai|model)\s*/i, "").trim().toLowerCase();
       if (arg === "off") {
         aiEnabled = false;
-        console.log(c.dim("Live AI OFF."));
+        console.log(c.dim("Live model OFF."));
       } else if (arg === "on") {
         if (!getNvidiaConfig({ preferFallback: true }) && !getNvidiaConfig()) {
           console.log(
             c.yellow(
-              "No OpenRouter keys (OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY).",
+              "No model keys (OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY).",
             ),
           );
         } else {
           aiEnabled = true;
-          console.log(c.dim("Live AI ON."));
+          console.log(c.dim("Live model ON."));
         }
       } else {
-        console.log(c.dim(`Live AI is ${aiEnabled ? "ON" : "OFF"}`));
+        console.log(c.dim(`Live model is ${aiEnabled ? "ON" : "OFF"}`));
       }
       continue;
     }
@@ -284,7 +284,7 @@ async function handleChat(
       );
     }
   } else {
-    console.log(c.dim("General chat → fallback AI key (no security keywords)"));
+    console.log(c.dim("General chat → live model (fallback key)"));
   }
 
   history.push({
@@ -294,8 +294,8 @@ async function handleChat(
       "",
       `Context: cwd=${root} · time=${new Date().toISOString()} · nonce=${Math.random().toString(36).slice(2, 8)}`,
       preferFallback
-        ? "Mode: general chat (fallback key preferred)."
-        : "Mode: security assist (primary key preferred).",
+        ? "Mode: general chat (fallback model key preferred)."
+        : "Mode: security assist (primary model key preferred).",
       "Reply in a natural, unique way. Do not reuse prior phrasing.",
       evidenceBlock,
     ]
@@ -307,13 +307,13 @@ async function handleChat(
     if (security) {
       console.log(
         c.yellow(
-          "AI offline — showing local ranking only. Set OPENROUTER_API_KEY / OPENROUTER_FALLBACK_API_KEY in ~/.sentineldev/.env",
+          "Model offline — showing local ranking only. Set model keys in ~/.sentineldev/.env",
         ),
       );
     } else {
       console.log(
         c.yellow(
-          "AI offline — add OPENROUTER_FALLBACK_API_KEY (or OPENROUTER_API_KEY) to ~/.sentineldev/.env",
+          "Model offline — add OPENROUTER_FALLBACK_API_KEY (or OPENROUTER_API_KEY) to ~/.sentineldev/.env",
         ),
       );
     }
@@ -321,11 +321,7 @@ async function handleChat(
     return;
   }
 
-  console.log(
-    c.smartBlue(
-      preferFallback ? "SentinelDev (fallback AI)" : "SentinelDev",
-    ),
-  );
+  console.log(c.smartBlue("SentinelDev · live model"));
   console.log("");
   await streamAi(history, showThinking, preferFallback);
 }
@@ -390,12 +386,12 @@ async function streamAi(
   } catch (err) {
     console.log(
       c.red(
-        `AI failed after all fallbacks: ${err instanceof Error ? err.message : String(err)}`,
+        `Model failed after all fallbacks: ${err instanceof Error ? err.message : String(err)}`,
       ),
     );
     console.log(
       c.dim(
-        "Local tools still work: /scan /endpoints /env /db  ·  check ~/.sentineldev/.env keys",
+        "Local tools still work: /scan /endpoints /env /db /ossprey  ·  check model keys in ~/.sentineldev/.env",
       ),
     );
     console.log("");
