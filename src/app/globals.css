@@ -49,8 +49,26 @@ textarea {
 
 .sd-shell {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
+  grid-template-columns: minmax(260px, 340px) 1fr;
   min-height: 100vh;
+}
+
+.sd-action-btn:hover:not(:disabled) {
+  background: #c5ced6 !important;
+  border-color: #9aabb7 !important;
+  color: var(--ink) !important;
+}
+
+.sd-action-btn:disabled,
+.sd-scramble-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sd-scramble-btn:hover:not(:disabled) {
+  background: var(--crit) !important;
+  color: #fff !important;
+  border-color: var(--crit) !important;
 }
 
 @media (max-width: 840px) {

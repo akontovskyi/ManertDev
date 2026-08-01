@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type CSSProperties } from "react";
+import { useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 
 type ChatMessage = {
   id: string;
@@ -30,17 +30,36 @@ export default function DashboardPage() {
   const [root, setRoot] = useState(".");
   const [findings, setFindings] = useState<Finding[]>([]);
   const [pending, startTransition] = useTransition();
+  const [scrambleConfirmOpen, setScrambleConfirmOpen] = useState(false);
+  const [pdfName, setPdfName] = useState("");
+  const [pdfLink, setPdfLink] = useState("");
+  const [pdfDragOver, setPdfDragOver] = useState(false);
+  const [openSeverities, setOpenSeverities] = useState<Record<string, boolean>>(
+    {},
+  );
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  const severityCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const f of findings) counts[f.severity] = (counts[f.severity] || 0) + 1;
-    return counts;
+  const findingsBySeverity = useMemo(() => {
+    const order = ["Critical", "High", "Medium", "Low", "Info"];
+    const groups: Record<string, Finding[]> = {};
+    for (const f of findings) {
+      (groups[f.severity] ||= []).push(f);
+    }
+    return Object.entries(groups).sort(([a], [b]) => {
+      const ai = order.indexOf(a);
+      const bi = order.indexOf(b);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
   }, [findings]);
 
-  function send() {
-    const q = input.trim();
+  function toggleSeverity(severity: string) {
+    setOpenSeverities((prev) => ({ ...prev, [severity]: !prev[severity] }));
+  }
+
+  function send(preset?: string) {
+    const q = (preset ?? input).trim();
     if (!q || pending) return;
-    setInput("");
+    if (!preset) setInput("");
     setMessages((m) => [...m, { id: crypto.randomUUID(), role: "user", content: q }]);
 
     startTransition(async () => {
@@ -73,8 +92,13 @@ export default function DashboardPage() {
     });
   }
 
-  async function onPdf(file: File | null) {
-    if (!file) return;
+  function confirmScramble() {
+    setScrambleConfirmOpen(false);
+    send("scramble keys");
+  }
+
+  function analyzePdfFile(file: File) {
+    setPdfName(file.name);
     const question =
       input.trim() || "Is this overly permissive? Who can access this resource?";
     setMessages((m) => [
@@ -105,6 +129,90 @@ export default function DashboardPage() {
     });
   }
 
+  function onPdf(file: File | null) {
+    if (!file) return;
+    const isPdf =
+      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      setPdfName("");
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+      setMessages((m) => [
+        ...m,
+        {
+          id: crypto.randomUUID(),
+          role: "sentinel",
+          content: "Only .pdf files are accepted for IAM / policy upload.",
+        },
+      ]);
+      return;
+    }
+    analyzePdfFile(file);
+  }
+
+  function onPdfLink() {
+    const url = pdfLink.trim();
+    if (!url || pending) return;
+
+    startTransition(async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
+        const blob = await res.blob();
+        const nameGuess =
+          url.split("/").pop()?.split("?")[0] || "policy.pdf";
+        const fileName = nameGuess.toLowerCase().endsWith(".pdf")
+          ? nameGuess
+          : `${nameGuess}.pdf`;
+        if (
+          blob.type &&
+          blob.type !== "application/pdf" &&
+          !fileName.toLowerCase().endsWith(".pdf")
+        ) {
+          throw new Error("Link did not return a PDF");
+        }
+        const file = new File([blob], fileName, { type: "application/pdf" });
+        setPdfLink("");
+        setPdfName(file.name);
+        const question =
+          input.trim() ||
+          "Is this overly permissive? Who can access this resource?";
+        setMessages((m) => [
+          ...m,
+          {
+            id: crypto.randomUUID(),
+            role: "user",
+            content: `PDF: ${file.name} — ${question}`,
+          },
+        ]);
+        const form = new FormData();
+        form.append("file", file);
+        form.append("question", question);
+        const analyze = await fetch("/api/pdf", { method: "POST", body: form });
+        const data = await analyze.json();
+        setMessages((m) => [
+          ...m,
+          {
+            id: crypto.randomUUID(),
+            role: "sentinel",
+            content: data.markdown || data.error || "PDF analysis failed.",
+          },
+        ]);
+        if (Array.isArray(data.findings)) setFindings(data.findings);
+      } catch (err) {
+        setMessages((m) => [
+          ...m,
+          {
+            id: crypto.randomUUID(),
+            role: "sentinel",
+            content: `Could not load PDF from link: ${
+              err instanceof Error ? err.message : "unknown error"
+            }. Try uploading the file instead.`,
+          },
+        ]);
+      }
+    });
+  }
+
   return (
     <div className="sd-shell" style={styles.shell}>
       <aside style={styles.side}>
@@ -121,23 +229,129 @@ export default function DashboardPage() {
           />
         </label>
 
-        <label style={styles.label}>
-          IAM / policy PDF
-          <input
-            style={styles.file}
-            type="file"
-            accept="application/pdf,text/plain,.json"
-            onChange={(e) => onPdf(e.target.files?.[0] ?? null)}
-          />
-        </label>
+        <div style={styles.pdfPanel}>
+          <p style={styles.pdfPanelTitle}>Analyze IAM / policy PDF</p>
+          <div
+            className={pdfDragOver ? "sd-pdf-drop sd-pdf-drop--active" : "sd-pdf-drop"}
+            style={{
+              ...styles.pdfDrop,
+              ...(pdfDragOver ? styles.pdfDropActive : {}),
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setPdfDragOver(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setPdfDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setPdfDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setPdfDragOver(false);
+              onPdf(e.dataTransfer.files?.[0] ?? null);
+            }}
+          >
+            <span style={styles.pdfIcon} aria-hidden>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="3" width="16" height="18" rx="2" stroke="#0f7a6c" strokeWidth="1.6" />
+                <path d="M8 8h8M8 12h8M8 16h5" stroke="#0f7a6c" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </span>
+            <p style={styles.pdfDropText}>
+              Drag a PDF here or{" "}
+              <button
+                type="button"
+                style={styles.pdfUploadLink}
+                disabled={pending}
+                onClick={() => pdfInputRef.current?.click()}
+              >
+                upload a file
+              </button>
+            </p>
+            {pdfName ? (
+              <p style={styles.pdfSelectedName}>{pdfName}</p>
+            ) : null}
+            <input
+              ref={pdfInputRef}
+              style={styles.fileHidden}
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={(e) => onPdf(e.target.files?.[0] ?? null)}
+            />
+          </div>
+
+          <div style={styles.pdfOrRow}>
+            <span style={styles.pdfOrLine} />
+            <span style={styles.pdfOrLabel}>OR</span>
+            <span style={styles.pdfOrLine} />
+          </div>
+
+          <form
+            style={styles.pdfLinkRow}
+            onSubmit={(e) => {
+              e.preventDefault();
+              onPdfLink();
+            }}
+          >
+            <input
+              style={styles.pdfLinkInput}
+              value={pdfLink}
+              onChange={(e) => setPdfLink(e.target.value)}
+              placeholder="Paste PDF link"
+              disabled={pending}
+            />
+            <button
+              type="submit"
+              style={styles.pdfSearchBtn}
+              disabled={pending || !pdfLink.trim()}
+            >
+              Search
+            </button>
+          </form>
+        </div>
 
         <div style={styles.counts}>
-          {Object.entries(severityCounts).map(([k, v]) => (
-            <div key={k} style={styles.countRow}>
-              <span style={{ ...styles.badge, ...badgeColor(k) }}>{k}</span>
-              <span>{v}</span>
-            </div>
-          ))}
+          {findingsBySeverity.map(([severity, items]) => {
+            const open = !!openSeverities[severity];
+            return (
+              <div key={severity} style={styles.severityGroup}>
+                <button
+                  type="button"
+                  style={styles.severityToggle}
+                  aria-expanded={open}
+                  onClick={() => toggleSeverity(severity)}
+                >
+                  <span style={styles.severityToggleLeft}>
+                    <span style={styles.severityCaret} aria-hidden>
+                      {open ? "▾" : "▸"}
+                    </span>
+                    <span style={{ ...styles.badge, ...badgeColor(severity) }}>
+                      {severity}
+                    </span>
+                  </span>
+                  <span style={styles.severityCount}>{items.length}</span>
+                </button>
+                {open && (
+                  <div style={styles.severityDropdown}>
+                    {items.map((f) => (
+                      <div key={f.id} style={styles.sideFinding}>
+                        <strong style={styles.sideFindingTitle}>{f.title}</strong>
+                        <p style={styles.sideFindingDesc}>{f.description}</p>
+                        <code style={styles.code}>
+                          {f.evidence.file}
+                          {f.evidence.line ? `:${f.evidence.line}` : ""}
+                        </code>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {findings.length === 0 && (
             <p style={styles.muted}>Findings appear after a scan.</p>
           )}
@@ -149,6 +363,60 @@ export default function DashboardPage() {
       </aside>
 
       <section style={styles.main}>
+        <div style={styles.actions}>
+          <button
+            type="button"
+            className="sd-action-btn"
+            style={styles.actionBtn}
+            disabled={pending}
+            onClick={() => send("exposed endpoints")}
+          >
+            Exposed Endpoints
+          </button>
+          <button
+            type="button"
+            className="sd-action-btn"
+            style={styles.actionBtn}
+            disabled={pending}
+            onClick={() => send("api exposure")}
+          >
+            API exposure
+          </button>
+          <button
+            type="button"
+            className="sd-action-btn"
+            style={styles.actionBtn}
+            disabled={pending}
+            onClick={() => {
+              setMessages((m) => [
+                ...m,
+                {
+                  id: crypto.randomUUID(),
+                  role: "user",
+                  content: "Query Limiting",
+                },
+                {
+                  id: crypto.randomUUID(),
+                  role: "sentinel",
+                  content:
+                    "No dedicated Query Limiting function exists in SentinelDev yet. Endpoint scans may still suggest rate-limiting public GETs in remediations.",
+                },
+              ]);
+            }}
+          >
+            Query Limiting
+          </button>
+          <button
+            type="button"
+            className="sd-scramble-btn"
+            style={styles.scrambleBtn}
+            disabled={pending}
+            onClick={() => setScrambleConfirmOpen(true)}
+          >
+            Key scramble
+          </button>
+        </div>
+
         <header style={styles.top}>
           <h1 style={styles.h1}>Security console</h1>
           <p style={styles.sub}>
@@ -174,27 +442,6 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {findings.length > 0 && (
-          <div style={styles.findings}>
-            <h2 style={styles.h2}>Latest findings</h2>
-            {findings.slice(0, 12).map((f) => (
-              <div key={f.id} style={styles.finding}>
-                <div style={styles.findingHead}>
-                  <span style={{ ...styles.badge, ...badgeColor(f.severity) }}>
-                    {f.severity}
-                  </span>
-                  <strong>{f.title}</strong>
-                </div>
-                <p style={styles.muted}>{f.description}</p>
-                <code style={styles.code}>
-                  {f.evidence.file}
-                  {f.evidence.line ? `:${f.evidence.line}` : ""}
-                </code>
-              </div>
-            ))}
-          </div>
-        )}
-
         <form
           style={styles.composer}
           onSubmit={(e) => {
@@ -214,6 +461,47 @@ export default function DashboardPage() {
           </button>
         </form>
       </section>
+
+      {scrambleConfirmOpen && (
+        <div
+          style={styles.modalBackdrop}
+          role="presentation"
+          onClick={() => setScrambleConfirmOpen(false)}
+        >
+          <div
+            style={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scramble-confirm-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="scramble-confirm-title" style={styles.modalTitle}>
+              Confirm key scramble
+            </h2>
+            <p style={styles.modalBody}>
+              There is no going back. Key scramble suggestions will be generated
+              for secret-like names in this scan root.
+            </p>
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                style={styles.modalCancel}
+                onClick={() => setScrambleConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={styles.modalDanger}
+                onClick={confirmScramble}
+                disabled={pending}
+              >
+                Scramble anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -244,6 +532,9 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: "1rem",
+    minHeight: "100vh",
+    maxHeight: "100vh",
+    overflow: "hidden",
   },
   sideBrand: {
     margin: 0,
@@ -263,14 +554,223 @@ const styles: Record<string, CSSProperties> = {
     padding: "0.55rem 0.65rem",
     border: "1px solid var(--line)",
     background: "#fff",
-    borderRadius: 2,
+    borderRadius: 8,
   },
-  file: { fontSize: "0.8rem" },
-  counts: { display: "flex", flexDirection: "column", gap: "0.4rem" },
-  countRow: {
+  pdfPanel: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+    padding: "0.85rem",
+    background: "#fff",
+    border: "1px solid var(--line)",
+    borderRadius: 16,
+    color: "var(--ink)",
+  },
+  pdfPanelTitle: {
+    margin: 0,
+    textAlign: "center",
+    fontSize: "0.9rem",
+    fontWeight: 500,
+    color: "var(--ink)",
+  },
+  pdfDrop: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.55rem",
+    minHeight: 110,
+    padding: "0.85rem 0.65rem",
+    border: "1px dashed var(--line)",
+    borderRadius: 10,
+    background: "rgba(244,247,249,0.9)",
+    textAlign: "center",
+  },
+  pdfDropActive: {
+    borderColor: "var(--safe)",
+    background: "rgba(15,122,108,0.08)",
+  },
+  pdfIcon: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pdfDropText: {
+    margin: 0,
+    fontSize: "0.8rem",
+    color: "var(--ink-soft)",
+    lineHeight: 1.4,
+  },
+  pdfSelectedName: {
+    margin: 0,
+    fontSize: "0.72rem",
+    color: "var(--safe)",
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  pdfUploadLink: {
+    padding: 0,
+    border: "none",
+    background: "none",
+    color: "var(--safe)",
+    fontWeight: 600,
+    fontSize: "inherit",
+    cursor: "pointer",
+    textDecoration: "underline",
+    textUnderlineOffset: 2,
+  },
+  pdfOrRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.55rem",
+  },
+  pdfOrLine: {
+    flex: 1,
+    height: 1,
+    background: "var(--line)",
+  },
+  pdfOrLabel: {
+    fontSize: "0.72rem",
+    color: "var(--ink-soft)",
+    letterSpacing: "0.04em",
+  },
+  pdfLinkRow: {
+    display: "flex",
+    gap: "0.45rem",
+    alignItems: "center",
+  },
+  pdfLinkInput: {
+    flex: 1,
+    minWidth: 0,
+    padding: "0.55rem 0.85rem",
+    border: "1px solid var(--line)",
+    borderRadius: 999,
+    background: "#fff",
+    color: "var(--ink)",
+    fontSize: "0.8rem",
+    outline: "none",
+  },
+  pdfSearchBtn: {
+    padding: "0.55rem 0.95rem",
+    border: "1px solid var(--line)",
+    borderRadius: 999,
+    background: "#fff",
+    color: "var(--safe)",
+    fontWeight: 600,
+    fontSize: "0.8rem",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  fileHidden: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0,
+    pointerEvents: "none",
+  },
+  actions: {
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.85rem 1.5rem 0",
+  },
+  actionBtn: {
+    flex: 1,
+    padding: "0.5rem 0.75rem",
+    background: "#fff",
+    color: "var(--ink)",
+    border: "1px solid var(--line)",
+    borderRadius: 8,
+    fontWeight: 600,
+    fontSize: "0.82rem",
+    cursor: "pointer",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    transition: "background 0.15s ease, color 0.15s ease, border-color 0.15s ease",
+  },
+  scrambleBtn: {
+    flex: 1,
+    padding: "0.5rem 0.75rem",
+    background: "#fff",
+    color: "var(--ink)",
+    border: "1px solid var(--line)",
+    borderRadius: 8,
+    fontWeight: 600,
+    fontSize: "0.82rem",
+    cursor: "pointer",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    transition: "background 0.15s ease, color 0.15s ease, border-color 0.15s ease",
+  },
+  counts: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.45rem",
+    overflow: "auto",
+    minHeight: 0,
+    flex: 1,
+  },
+  severityGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.35rem",
+  },
+  severityToggle: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    width: "100%",
+    padding: "0.4rem 0.35rem",
+    border: "1px solid var(--line)",
+    borderRadius: 8,
+    background: "#fff",
+    cursor: "pointer",
+    font: "inherit",
+    color: "var(--ink)",
+  },
+  severityToggleLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.45rem",
+  },
+  severityCaret: {
+    fontSize: "0.75rem",
+    color: "var(--ink-soft)",
+    width: "0.75rem",
+  },
+  severityCount: {
+    fontFamily: "var(--font-mono)",
+    fontSize: "0.85rem",
+    fontWeight: 600,
+  },
+  severityDropdown: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.45rem",
+    padding: "0.35rem 0.15rem 0.15rem 0.85rem",
+    borderLeft: "2px solid var(--line)",
+    marginLeft: "0.45rem",
+  },
+  sideFinding: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.2rem",
+    paddingBottom: "0.45rem",
+    borderBottom: "1px dashed var(--line)",
+  },
+  sideFindingTitle: {
+    fontSize: "0.8rem",
+    lineHeight: 1.3,
+  },
+  sideFindingDesc: {
+    margin: 0,
+    color: "var(--ink-soft)",
+    fontSize: "0.75rem",
+    lineHeight: 1.35,
   },
   badge: {
     fontSize: "0.7rem",
@@ -334,27 +834,11 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "0.92rem",
     lineHeight: 1.45,
   },
-  findings: {
-    borderTop: "1px solid var(--line)",
-    padding: "0.85rem 1.5rem",
-    maxHeight: 220,
-    overflow: "auto",
-    background: "rgba(244,247,249,0.9)",
-  },
-  finding: {
-    padding: "0.55rem 0",
-    borderBottom: "1px dashed var(--line)",
-  },
-  findingHead: {
-    display: "flex",
-    gap: "0.5rem",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
   code: {
     fontFamily: "var(--font-mono)",
-    fontSize: "0.78rem",
+    fontSize: "0.72rem",
     color: "var(--ink-soft)",
+    wordBreak: "break-all",
   },
   composer: {
     display: "flex",
@@ -376,6 +860,59 @@ const styles: Record<string, CSSProperties> = {
     color: "#f4f7f9",
     border: "none",
     borderRadius: 2,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  modalBackdrop: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(12,26,36,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 50,
+    padding: "1rem",
+  },
+  modal: {
+    background: "#fff",
+    border: "1px solid var(--line)",
+    borderRadius: 10,
+    maxWidth: 420,
+    width: "100%",
+    padding: "1.25rem 1.35rem",
+    boxShadow: "0 12px 40px rgba(12,26,36,0.18)",
+  },
+  modalTitle: {
+    margin: 0,
+    fontFamily: "var(--font-display)",
+    fontSize: "1.25rem",
+  },
+  modalBody: {
+    margin: "0.75rem 0 1.25rem",
+    color: "var(--ink-soft)",
+    fontSize: "0.95rem",
+    lineHeight: 1.45,
+  },
+  modalActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "0.5rem",
+  },
+  modalCancel: {
+    padding: "0.55rem 0.9rem",
+    background: "#fff",
+    color: "var(--ink)",
+    border: "1px solid var(--line)",
+    borderRadius: 8,
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  modalDanger: {
+    padding: "0.55rem 0.9rem",
+    background: "var(--crit)",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
     fontWeight: 600,
     cursor: "pointer",
   },
