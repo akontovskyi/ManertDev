@@ -46,6 +46,10 @@ npm run cli -- ask "apply fix for secrets" --root ./fixtures
 npm run cli -- modal "deep scan endpoints and database" --root .
 ```
 
+# Simply run the main command
+manert
+```
+
 Demo target with intentional issues: `fixtures/vulnerable-sample.ts`.
 
 ### Supabase fix logs
