@@ -44,10 +44,9 @@ npm run cli -- ask "apply fix for secrets" --root ./fixtures
 
 # Emit a Modal-ready task description
 npm run cli -- modal "deep scan endpoints and database" --root .
-```
 
-# Simply run the main command
-manert
+# Run the main command too
+manert 
 ```
 
 Demo target with intentional issues: `fixtures/vulnerable-sample.ts`.
