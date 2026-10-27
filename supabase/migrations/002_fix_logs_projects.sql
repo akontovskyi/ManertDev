@@ -1,4 +1,4 @@
--- SentinelDev fix_logs — full schema with project + problem tracking
+-- ManertDev fix_logs — full schema with project + problem tracking
 -- Run in: https://supabase.com/dashboard/project/qxdzxathzywokwcxobtg/sql/new
 -- Safe to re-run (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
 
@@ -92,7 +92,7 @@ create policy "Allow update fix_logs"
 --   'Admin route without auth',
 --   'app.get(''/admin/users'')',
 --   'Add requireSession middleware',
---   'SentinelDev',
+--   'ManertDev',
 --   'In-dev security helper CLI',
 --   'fixtures/vulnerable-sample.ts', 7,
 --   'proposed', false

@@ -14,10 +14,10 @@ dist/
 .env.local
 .env.*.local
 !.env.example
-.sentineldev/.env
-**/.sentineldev/.env
-.sentineldev/
-**/.sentineldev/
+.manertdev/.env
+**/.manertdev/.env
+.manertdev/
+**/.manertdev/
 *.pem
 *.key
 credentials.json

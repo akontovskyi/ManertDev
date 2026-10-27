@@ -1,4 +1,4 @@
--- SentinelDev fix_logs table (Supabase PostgreSQL)
+-- ManertDev fix_logs table (Supabase PostgreSQL)
 -- Prefer running 002_fix_logs_projects.sql (includes project fields).
 -- Paste into: https://supabase.com/dashboard/project/qxdzxathzywokwcxobtg/sql/new
 
